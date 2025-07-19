@@ -118,7 +118,7 @@ class Assistant(BaseObjectMixin):
     metadata: Optional[object] = None
     tools: List[Tool]
 
-    object: Optional[str]
+    object: Optional[str] = None
 
     top_p: Optional[float] = None
     top_k: Optional[int] = None
