@@ -11,8 +11,8 @@ Submodules by responsibility:
 Requires ``pip install loongsuite-util-genai`` and tracing env flags
 (``ENABLE_TRAJECTORY``).
 
-Optional: ``AGENTIC_RL_LOG_TRACE_ID=false`` (or ``AGENTIC_RL_LOG_LLM_TRACE_ID=false``)
-disables ``trace_id`` diagnostic logs everywhere; see :mod:`dashscope.finetune.reinforcement.component.observability.tracing`.
+Optional: ``AGENTIC_RL_LOG_TRACE_ID=true`` enables ``trace_id`` diagnostic logs (default off);
+see :mod:`dashscope.finetune.reinforcement.component.observability.tracing`.
 """
 
 from __future__ import annotations

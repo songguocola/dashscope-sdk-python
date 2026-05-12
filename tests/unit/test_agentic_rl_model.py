@@ -9,8 +9,11 @@ from dashscope.finetune.reinforcement import (
     AgenticRLFunctionComponent,
     FunctionType,
     TrainingType,
+    DataSourceType,
     FileSpec,
     Datasets,
+    TrainingDataset,
+    ValidationDataset,
     FoundationModel,
     Training,
     FunctionComponentModel,
@@ -25,18 +28,24 @@ from dashscope.finetune.reinforcement import (
 def sample_tuning_model():
     return TuningModel(
         name="test-tuning",
-        datasets=Datasets(
-            training_files=[
-                FileSpec(path="train1.jsonl"),
-                FileSpec(path="train2.jsonl")
-            ],
-            validation_files=[FileSpec(path="val.jsonl")]
-        ),
+        datasets=[
+            TrainingDataset(
+                data_source_type=DataSourceType.FILE_ID,
+                file_name="train1.jsonl",
+            ),
+            TrainingDataset(
+                data_source_type=DataSourceType.FILE_ID,
+                file_name="train2.jsonl",
+            ),
+            ValidationDataset(
+                data_source_type=DataSourceType.FILE_ID,
+                file_name="val.jsonl",
+            ),
+        ],
         model=FoundationModel(name="qwen-max"),
         training=Training(
             type=TrainingType.TRAINING_TYPE,
             hyperparameters={"learning_rate": "1e-4"},
-            tuned_model_name="qwen-tuned"
         )
     )
 
@@ -77,7 +86,7 @@ def sample_function_components():
 def agentic_rl_tuning(sample_tuning_model, sample_function_components):
     tuning = AgenticRLTuning()
     tuning.tuning = sample_tuning_model
-    tuning.tuning.fcs = sample_function_components
+    tuning.tuning.functions = sample_function_components
     return tuning
 
 
@@ -85,7 +94,7 @@ class TestAgenticRLTuning:
     def test_initialization(self):
         """Test class initialization"""
         tuning = AgenticRLTuning()
-        assert tuning.tuning_id == ""
+        assert tuning.tuning_id is None
         assert isinstance(tuning.tuning, TuningModel)
         assert tuning.tuning.name == "agentic-rl"
 
@@ -99,11 +108,11 @@ class TestAgenticRLTuning:
             classpaths="path/to/rollout.py:RolloutProcessor",
             workspace_dir="./"
         )
-        for fc in tuning.tuning.fcs:
+        for fc in tuning.tuning.functions:
             fc.fcmodel.filepath, fc.fcmodel.classname = get_filepath_classname(fc.fcmodel.classpath)
 
-        assert len(tuning.tuning.fcs) == 1
-        fc = tuning.tuning.fcs[0]
+        assert len(tuning.tuning.functions) == 1
+        fc = tuning.tuning.functions[0]
         assert fc.type == FunctionType.ROLLOUT
         assert fc.fcmodel.filepath == "path/to/rollout.py"
         assert fc.fcmodel.classname == "RolloutProcessor"
@@ -115,23 +124,23 @@ class TestAgenticRLTuning:
             runtimes=[{"cpu": 1}, {"cpu": 2}],
             workspace_dir="./"
         )
-        for fc in tuning.tuning.fcs:
+        for fc in tuning.tuning.functions:
             fc.fcmodel.filepath, fc.fcmodel.classname = get_filepath_classname(fc.fcmodel.classpath)
 
-        assert len(tuning.tuning.fcs) == 3
-        assert tuning.tuning.fcs[1].type == FunctionType.REWARD
-        assert tuning.tuning.fcs[1].fcmodel.filepath == "path/to/reward1.py"
-        assert tuning.tuning.fcs[1].runtime.cpu == 1
+        assert len(tuning.tuning.functions) == 3
+        assert tuning.tuning.functions[1].type == FunctionType.REWARD
+        assert tuning.tuning.functions[1].fcmodel.filepath == "path/to/reward1.py"
+        assert tuning.tuning.functions[1].runtime.cpu == 1
 
-        assert tuning.tuning.fcs[2].type == FunctionType.REWARD
-        assert tuning.tuning.fcs[2].fcmodel.filepath == "path/to/reward2.py"
-        assert tuning.tuning.fcs[2].runtime.cpu == 2
+        assert tuning.tuning.functions[2].type == FunctionType.REWARD
+        assert tuning.tuning.functions[2].fcmodel.filepath == "path/to/reward2.py"
+        assert tuning.tuning.functions[2].runtime.cpu == 2
 
     @pytest.mark.asyncio
     async def test_register_functions_success(self, agentic_rl_tuning):
         """Test successful function component registration"""
         # Create mocks for each component
-        for fc in agentic_rl_tuning.tuning.fcs:
+        for fc in agentic_rl_tuning.tuning.functions:
             fc.register = AsyncMock(return_value=MagicMock(
                 status=MagicMock(success=True),
                 output={"entity_id": f"entity-{fc.type}"}
@@ -155,7 +164,7 @@ class TestAgenticRLTuning:
         assert group_reward_instances == []
 
         # Verify each component called register and load
-        for fc in agentic_rl_tuning.tuning.fcs:
+        for fc in agentic_rl_tuning.tuning.functions:
             fc.register.assert_called_once()
             fc.load.assert_called_once()
 
@@ -163,12 +172,12 @@ class TestAgenticRLTuning:
     async def test_register_functions_failure(self, agentic_rl_tuning):
         """Test function component registration failure"""
         # Mock registration process with patch.object
-        with patch.object(agentic_rl_tuning.tuning.fcs[0], 'register', AsyncMock(return_value=MagicMock(
+        with patch.object(agentic_rl_tuning.tuning.functions[0], 'register', AsyncMock(return_value=MagicMock(
                 status=MagicMock(success=False, message="Registration failed")
-        ))), patch.object(agentic_rl_tuning.tuning.fcs[1], 'register', AsyncMock(return_value=MagicMock(
+        ))), patch.object(agentic_rl_tuning.tuning.functions[1], 'register', AsyncMock(return_value=MagicMock(
                               status=MagicMock(success=True),
                               output={"entity_id": "entity-reward"}
-                          ))), patch.object(agentic_rl_tuning.tuning.fcs[1], 'load',
+                          ))), patch.object(agentic_rl_tuning.tuning.functions[1], 'load',
                                                     AsyncMock(return_value=MagicMock(
                                                         status=MagicMock(success=False, message="Load failed")
                                                     ))):
@@ -179,28 +188,25 @@ class TestAgenticRLTuning:
             assert "Function component registration error" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_register_datasets_success(self, agentic_rl_tuning):
-        """Test successful dataset registration"""
+    async def test_upload_datasets_success(self, agentic_rl_tuning):
+        """Test successful dataset upload"""
         # Patch the to_bailian_data function in the correct location
         with patch(
                 "dashscope.finetune.reinforcement.common.model.to_bailian_data",
                 new_callable=AsyncMock,
-                side_effect=[
-                    ["train-id-1", "train-id-2"],  # training_files
-                    ["val-id"]  # validation_files
-                ]
+                return_value=["dummy-file-id"]  # Same value for every call
         ):
-            train_ids, val_ids = await agentic_rl_tuning.tuning.register_datasets()
+            train_ids, val_ids = await agentic_rl_tuning.tuning.upload_datasets()
 
-            assert train_ids == ["train-id-1", "train-id-2"]
-            assert val_ids == ["val-id"]
+            assert train_ids == ["dummy-file-id", "dummy-file-id"]
+            assert val_ids == ["dummy-file-id"]
 
             # Verify model state update
-            assert agentic_rl_tuning.tuning.datasets.uploaded_training_ids == ["train-id-1", "train-id-2"]
-            assert agentic_rl_tuning.tuning.datasets.uploaded_validation_ids == ["val-id"]
+            assert agentic_rl_tuning.tuning.datasets[0].file_id == "dummy-file-id"
+            assert agentic_rl_tuning.tuning.datasets[0].file_id == "dummy-file-id"
 
     @pytest.mark.asyncio
-    async def test_register_datasets_failure(self, agentic_rl_tuning):
+    async def test_upload_datasets_failure(self, agentic_rl_tuning):
         """Test dataset registration failure"""
         # Mock file system operations
         with patch("os.path.exists", return_value=True), \
@@ -212,15 +218,15 @@ class TestAgenticRLTuning:
                     side_effect=Exception("Upload failed")
                 ):
             with pytest.raises(OSSUploadError) as exc_info:
-                await agentic_rl_tuning.tuning.register_datasets()
+                await agentic_rl_tuning.tuning.upload_datasets()
 
             assert "Critical failure in dataset registration process" in str(exc_info.value)
 
     def test_get_entity_ids(self, agentic_rl_tuning):
         """Test getting entity IDs"""
         # Set entity IDs
-        agentic_rl_tuning.tuning.fcs[0].entity_id = "rollout-entity"
-        agentic_rl_tuning.tuning.fcs[1].entity_id = "reward-entity"
+        agentic_rl_tuning.tuning.functions[0].entity_id = "rollout-entity"
+        agentic_rl_tuning.tuning.functions[1].entity_id = "reward-entity"
 
         # Test getting Rollout entity ID
         rollout_ids = agentic_rl_tuning.tuning.get_entity_ids(FunctionType.ROLLOUT)
@@ -253,8 +259,8 @@ class TestAgenticRLTuning:
     def test_combine_ids_runtimes(self, agentic_rl_tuning):
         """Test combining IDs and runtime configurations"""
         # Set entity IDs
-        agentic_rl_tuning.tuning.fcs[0].entity_id = "rollout-entity"
-        agentic_rl_tuning.tuning.fcs[1].entity_id = "reward-entity"
+        agentic_rl_tuning.tuning.functions[0].entity_id = "rollout-entity"
+        agentic_rl_tuning.tuning.functions[1].entity_id = "reward-entity"
 
         # Test Rollout combination
         rollout_functions = agentic_rl_tuning.tuning.combine_ids_runtimes(
@@ -303,7 +309,7 @@ class TestAgenticRLTuning:
             runtimes=[{"cpu": 1}],  # Only one runtime provided
             workspace_dir="./"
         )
-        assert len(tuning_model.fcs) == 2
+        assert len(tuning_model.functions) == 2
 
         # Should have two components but only one runtime
         functions = tuning_model.combine_ids_runtimes(FunctionType.ROLLOUT, ['rollout-id-1', 'rollout-id-2'], None)

@@ -17,6 +17,12 @@ These are **diagnostics only**; unset in production unless troubleshooting.
     Set to ``1`` / ``true`` / ``yes`` / ``y`` in ``llm_openai`` to log completion /
     ``output_messages`` shapes (see ``_DEBUG_LLM_OUTPUT`` there).
 
+``AGENTIC_RL_DEBUG_LLM_TOOL_CALLS``
+    Set to ``1`` / ``true`` / ``yes`` / ``y`` in ``messages`` to log per-message
+    ``tool_calls`` shapes and per-item ``tool_calls_to_parts`` mapping (branch,
+    argument types/lengths) when building LLM ``input_messages`` — for diagnosing
+    empty ``tool_call.arguments`` in traces.
+
 Recommended check before merging changes under ``…/observability/genai/``::
 
     PYTHONPATH=. pytest tests/observability/genai/ -q

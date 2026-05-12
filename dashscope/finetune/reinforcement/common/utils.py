@@ -18,17 +18,18 @@ import ast
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import subprocess
 import sys
-import importlib.util
+import fnmatch
+
 
 from dashscope.finetune.reinforcement import logger
 from dashscope.finetune.reinforcement.common.errors import (
-    InputError, OutputError, ConnectionError, ConfigurationError, PermissionError, RuntimeErrorWithCode
+    InputError, OutputError, ConnectionError, ConfigurationError, PermissionError, RuntimeErrorWithCode, OSSUploadError
 )
 from dashscope.finetune.reinforcement import (LOG_LEVEL, DASHSCOPE_HTTP_BASE_URL,
                                                    DASHSCOPE_API_KEY, BAILIAN_FILE_API,
                                                    BAILIAN_FILE_TIMEOUT, HTTP_REQUEST_TIMEOUT,
-                                                   FC_API_KEY, FC_FILES_START, FC_PYPI_LIB, FC_PYPI_REPO, FC_OFFLINE_INSTALLATION,
-                                                   FC_SERVER_CLASSPATH,
+                                                   FC_API_KEY, FC_FILES_START, FC_PYPI_LIB, FC_PYPI_REPO, FC_LAYER_USED,
+                                                   FC_SERVER_CLASSPATH, FC_ZIP_EXCLUDE_PATTERNS, FC_OSS_FILE_SIZE_WARNING,
                                                    LOGGER_FILTER_FIELDS, FC_WORKERS_COUNT)
 from dashscope.finetune.reinforcement.common.model_types import FileSpec, FunctionType
 
@@ -56,7 +57,7 @@ async def async_http_request(
             method = method.upper()
 
             if method == "GET":
-                async with session.get(url) as response:
+                async with session.get(url, params=data) as response:
                     result = await _handle_response(response)
             elif method == "POST":
                 async with session.post(url, json=data) as response:
@@ -128,7 +129,7 @@ def generate_agentic_script(
         requirements_path: str,
         func_type: str,
         classpath: str,
-        function_layer_created: bool = True,
+        function_layer_used: bool = True
 ) -> str:
     """
     Generate robust deployment script with error handling.
@@ -154,7 +155,7 @@ SDK_PACKAGE="{fc_pypi_lib}"
 REQUIREMENTS_FILE="{requirements_path}"
 SERVER_CLASSPATH="{FC_SERVER_CLASSPATH}"
 WORKERS_COUNT="{FC_WORKERS_COUNT}"
-OFFLINE_INSTALLATION="{function_layer_created}"
+FUNCTION_LAYER="{function_layer_used}"
 LOG_DIR="/tmp/log/agentic_rl"
 MAX_RETRIES=3
 '''
@@ -218,9 +219,12 @@ main() {
     trap cleanup EXIT
     validate_environment
     
-    if [ "${OFFLINE_INSTALLATION}" = "False" ]; then
+    if [ "${FUNCTION_LAYER}" = "False" ]; then
         # Phase 2: 
-        pip install virtualenv # 21.2.4
+        if ! install_with_retry "virtualenv"; then
+            log "Failed to install default package: $pkg"
+            exit 202
+        fi
         virtualenv dashscope-env
         source dashscope-env/bin/activate
     fi
@@ -231,18 +235,18 @@ main() {
     for pkg in "${local_packages[@]}"; do
         if ! install_with_retry "$pkg"; then
             log "Failed to install default package: $pkg"
-            exit 201
+            exit 203
         fi
     done
     
-    if [ "${OFFLINE_INSTALLATION}" = "False" ]; then
+    if [ "${FUNCTION_LAYER}" = "False" ]; then
         # Phase 4: User dependency Setup
         log "Starting user dependency installation"
         if [ -f "${REQUIREMENTS_FILE}" ]; then # Check if requirements file exists
             log "Installing additional requirements from ${REQUIREMENTS_FILE}"
             if ! install_with_retry -r "${REQUIREMENTS_FILE}"; then
                 log "Failed to install requirements from ${REQUIREMENTS_FILE}"
-                exit 202
+                exit 204
             fi
         fi
     fi
@@ -275,7 +279,6 @@ def create_deployment_files(
         filepath: str,
         classname: str,
         requirements_path: str = '',
-        function_layer_created: bool = False,
 ) -> None:
     """Create startup script and requirements file for deployment."""
     try:
@@ -298,7 +301,7 @@ def create_deployment_files(
             requirements_path=requirements_path,
             func_type=str(type),
             classpath=classpath,
-            function_layer_created=function_layer_created,
+            function_layer_used=FC_LAYER_USED,
         )
 
         with open(FC_FILES_START, 'w', encoding='utf-8') as f:
@@ -325,25 +328,62 @@ def zip_dir(
         dirpath: str,
         output_zip: str,
         extra_files: Optional[List[str]] = None,
-        rw_type="w",
+        rw_type: str = "w",
+        exclude_patterns: Optional[List[str]] = None,
 ) -> None:
     """
-    Compress a directory and optional extra files.
+    Compress a directory and optional extra files, with exclusion support.
 
     Args:
         dirpath: Main directory path to compress
         output_zip: Output zip file path
         extra_files: List of additional files to add
+        rw_type: Zip file write mode ('w', 'a', etc.)
+        exclude_patterns: List of patterns to exclude (e.g. ["*.log", "__pycache__"])
     """
+    if exclude_patterns is None:
+        env_exclude = FC_ZIP_EXCLUDE_PATTERNS
+        exclude_patterns = [p.strip() for p in env_exclude.split(",") if p.strip()]
+
+    all_excludes = exclude_patterns
+    logger.debug(f"Zip exclusion patterns: {all_excludes}")
+
     try:
         with zipfile.ZipFile(output_zip, rw_type, zipfile.ZIP_DEFLATED) as zipf:
             # Compress main directory
             if os.path.exists(dirpath):
-                for root, dirs, files in os.walk(dirpath):
+                for root, dirs, files in os.walk(dirpath, topdown=True):
+                    the_dirs = []
+                    for d in dirs:
+                        full_rel_path = os.path.join(os.path.relpath(root, start=dirpath), d)
+                        normalized_path = full_rel_path.replace('\\', '/')
+
+                        matched_pattern = None
+                        for pattern in all_excludes:
+                            if fnmatch.fnmatch(d, pattern) or fnmatch.fnmatch(normalized_path, pattern):
+                                matched_pattern = pattern
+                                break
+
+                        if not matched_pattern:
+                            the_dirs.append(d)
+                        else:
+                            logger.debug(
+                                f"Excluding directory: {normalized_path} (matched pattern: '{matched_pattern}')")
+                    dirs[:] = the_dirs
+
                     for file in files:
                         file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, start=dirpath)
-                        zipf.write(file_path, arcname)
+                        rel_path = os.path.relpath(file_path, start=dirpath)
+
+                        if any(
+                                fnmatch.fnmatch(os.path.basename(file), pattern) or
+                                fnmatch.fnmatch(file, pattern)
+                                for pattern in all_excludes
+                        ):
+                            logger.debug(f"Excluding file: {rel_path}")
+                            continue
+
+                        zipf.write(file_path, rel_path)
             else:
                 logger.warning(f"Directory not found: {dirpath}")
 
@@ -351,9 +391,17 @@ def zip_dir(
             if extra_files:
                 for file in extra_files:
                     if os.path.exists(file):
+                        if any(
+                                fnmatch.fnmatch(os.path.basename(file), pattern)
+                                for pattern in all_excludes
+                        ):
+                            logger.debug(f"Excluding extra file: {file}")
+                            continue
+
                         zipf.write(file, os.path.basename(file))
                     else:
                         logger.warning(f"Extra file not found: {file}")
+
     except Exception as e:
         logger.error(f"Directory compression failed: {str(e)}", exc_info=True)
         raise RuntimeErrorWithCode("Directory compression error", error_code=4300) from e
@@ -363,7 +411,12 @@ def _sync_upload_to_oss(signed_url: str, zipfile: str) -> int:
     """Synchronously upload a file to OSS with progress tracking."""
     try:
         file_size = os.path.getsize(zipfile)
-        logger.debug(f"Uploading {zipfile} ({file_size} bytes) to OSS")
+        size_mb = file_size / (1024 * 1024)
+        if file_size > FC_OSS_FILE_SIZE_WARNING:
+            logger.warning(f"Uploading large file: {zipfile} ({size_mb:.2f}MB) to OSS")
+            raise OSSUploadError(f"Uploading large file: {zipfile} ({size_mb:.2f}MB) to OSS")
+        else:
+            logger.debug(f"Uploading file: {zipfile} ({size_mb:.2f}MB) to OSS")
 
         with open(zipfile, 'rb') as file:
             response = requests.put(

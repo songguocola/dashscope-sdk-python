@@ -27,11 +27,19 @@ class FunctionType(str, Enum):
     def __str__(self):
         return self.value
 
+class DataSourceType(str, Enum):
+    FILE_ID = "file_id"
+    DOWNLOAD_URL = "download_url"
+    OSS_MOUNT = "oss_mount"
+
+    def __str__(self):
+        return self.value
+
 
 class DatasetsType(str, Enum):
     TRAINING = "training"
     TESTING = "testing"
-    VALID = "valid"
+    VALIDATION = "validation"
 
     def __str__(self):
         return self.value

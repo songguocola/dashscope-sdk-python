@@ -19,7 +19,7 @@ from dashscope.finetune.reinforcement import AbstractRewardProcessor
 from dashscope.finetune.reinforcement import observe_processor
 
 
-@reward_func("B")
+@reward_func("SafetyProcessor")
 class SafetyProcessor(AbstractRewardProcessor):
     BANNED = {"hack", "exploit", "attack"}
 

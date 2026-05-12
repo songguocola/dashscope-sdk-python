@@ -1,5 +1,6 @@
 # Standard Library
 import os
+import time
 import json
 import asyncio
 import shutil
@@ -26,8 +27,9 @@ from dashscope.finetune.reinforcement import (
     FC_UPLOAD_OSS_API,
     FC_LAYER_NAME,
     FC_REQUIREMENTS_FILE,
-    FC_OFFLINE_INSTALLATION,
+    FC_LAYER_USED,
     FC_LAYER_CREATE_API,
+    FC_LAYER_QUERY_API,
     LOG_LEVEL,
 )
 from dashscope.finetune.reinforcement.common.errors import (
@@ -49,10 +51,13 @@ from dashscope.finetune.reinforcement import (
     get_filepath_classname,
     get_func_type_id,
     get_weights_from_file,
+    deep_remove_none,
 )
 from dashscope.finetune.reinforcement import (
     FileSpec,
     FunctionType,
+    DatasetsType,
+    DataSourceType,
     RequestFC,
     ResponseFC,
     Status,
@@ -69,32 +74,94 @@ from dashscope.finetune.reinforcement import (
 )
 
 
+class MountStorage(BaseModel):
+    region: Optional[str] = None
+    bucket: Optional[str] = None
+    file_path: Optional[str] = None
+
+
+class Dataset(BaseModel):
+    type: DatasetsType = DatasetsType.TRAINING
+
+    data_source_type: Optional[DataSourceType] = DataSourceType.FILE_ID
+    # type: file_id
+    file_name: Optional[str] = None
+    file_id: Optional[str] = None
+    # type: download_url
+    download_url: Optional[str] = None
+    # type: oss_mount
+    mount_storage: Optional[MountStorage] = None
+
+    async def upload_dataset(self) -> str:
+        if self.data_source_type == DataSourceType.FILE_ID and self.file_name is not None:
+            try:
+                file_id = await to_bailian_data([FileSpec(path=self.file_name)])
+                if file_id and isinstance(file_id, List) and len(file_id) > 0:
+                    self.file_id = file_id[0]
+
+            except Exception as e:
+                logger.error(f"Dataset upload failed: {str(e)}", exc_info=True)
+                raise OSSUploadError(f"Failed to upload datasets: {str(e)}", error_code=1100) from e
+
+        return self.file_id
+
+
 class Datasets(BaseModel):
-    name: str = ''
-    training_files: Optional[List[FileSpec]] = []
-    validation_files: Optional[List[FileSpec]] = []
+    name: str = None
+    # training_files: Optional[List[FileSpec]] = []
+    # validation_files: Optional[List[FileSpec]] = []
+    #
+    # uploaded_training_ids: Optional[List[str]] = []
+    # uploaded_validation_ids: Optional[List[str]] = []
+    datasets: List[Dataset] = None
 
-    uploaded_training_ids: Optional[List[str]] = []
-    uploaded_validation_ids: Optional[List[str]] = []
+    @classmethod
+    async def upload_datasets(cls, training_files: Union[List[str], str] = None, validation_files: Union[List[str], str] = None) -> List:
+        training_files = training_files if isinstance(training_files, List) else [training_files]
+        validation_files = validation_files if isinstance(validation_files, List) else [validation_files]
 
-    async def upload_datasets(self) -> List:
+        training_filespecs = [FileSpec(path=f) for f in training_files]
+        validation_filespecs = [FileSpec(path=f) for f in validation_files]
+
+        uploaded_training_ids = None
+        uploaded_validation_ids = None
         try:
-            if self.training_files:
-                self.uploaded_training_ids = await to_bailian_data(self.training_files)
-            if self.validation_files:
-                self.uploaded_validation_ids = await to_bailian_data(self.validation_files)
+            if training_files:
+                uploaded_training_ids = await to_bailian_data(training_filespecs)
+            if validation_files:
+                uploaded_validation_ids = await to_bailian_data(validation_filespecs)
+
         except Exception as e:
             logger.error(f"Dataset upload failed: {str(e)}", exc_info=True)
             raise OSSUploadError(f"Failed to upload datasets: {str(e)}", error_code=1100) from e
 
+        return uploaded_training_ids, uploaded_validation_ids
+
+
+class TrainingDataset(Dataset):
+    type: DatasetsType = DatasetsType.TRAINING
+
+
+class ValidationDataset(Dataset):
+    type: DatasetsType = DatasetsType.VALIDATION
+
 
 class FoundationModel(BaseModel):
-    name: str = ''
+    name: str = None
+
+
+class TrainingResource(BaseModel):
+    charge_type: Optional[str] = None # prepaid, postpaid
+    mtu_spec_code: Optional[str] = None
+    instance_id: Optional[str] = None
+    mtu_capacity: Optional[int] = None
+    postpaid_fallback_enabled: Optional[bool] = False
 
 
 class Training(BaseModel):
     type: TrainingType = TrainingType.TRAINING_TYPE
-    hyperparameters: Dict[str, str] = {}
+    hyperparameters: Dict[str, str] = None
+    resources: Optional[TrainingResource] = None
 
 
 class Observability(BaseModel):
@@ -145,7 +212,7 @@ class FunctionComponentModel(BaseModel):
         description="Local directory path containing function code"
     )
     classpath: Optional[str] = Field(
-        default=None,
+        default='',
         description="Entrypoint class path for the function"
     )
 
@@ -163,16 +230,16 @@ class FunctionComponentModel(BaseModel):
         description="Specify Python dependencies"
     )
     extra_files: Optional[List[str]] = Field(
-        default='',
+        default=[],
         description="Additional deployment files required for function execution"
     )
 
     oss_id: Optional[str] = Field(
-        default='',
+        default=None,
         description="Unique identifier for OSS storage resource"
     )
     oss_signed_url: Optional[str] = Field(
-        default='',
+        default=None,
         description="Pre-signed URL for OSS bucket access"
     )
 
@@ -217,11 +284,14 @@ class FunctionComponentModel(BaseModel):
     async def create_layer(
             self,
             name: str = FC_LAYER_NAME,
-            requirements_file: str = FC_REQUIREMENTS_FILE) -> str:
+            requirements_file: str = FC_REQUIREMENTS_FILE,
+            #oss_signed_url: str = None,
+    ) -> str:
         """Retrieve OSS signed URL for deployment package."""
         layer_code = None
         try:
             # Validate requirements file if provided
+            layer_name = name + '-' + generate_random_id()[:8]
             requirements = None
             if requirements_file and requirements_file.strip():
                 req_path = os.path.join(self.zipdir, requirements_file)
@@ -229,42 +299,33 @@ class FunctionComponentModel(BaseModel):
                 logger.debug(f"Found requirements file: {req_path}")
                 with open(req_path, 'r', encoding='utf-8') as f:
                     requirements = f.read()
+            #oss_signed_url = oss_signed_url or self.oss_signed_url
 
-            # response: {
-            #     "code": 0,
-            #     "message": "success",
-            #     "data": {
-            #         "layer_code": "layer-xxxx",
-            #         "status": "building"
-            #     }
-            # }
-            layer_name = name + '-' + generate_random_id()[:8]
             result = await client_fc(
                 FC_API_KEY,
                 FC_LAYER_CREATE_API,
                 {
                     "layer_name": layer_name,
-                    "requirements_content": requirements
+                    "requirements_content": requirements,
+                    #"signed_url": oss_signed_url,
                 }
             )
-            if result.get('status', '').get('code', 500) == 200:
+            if result.get('status', {}).get('code', 500) == 200:
                 layer_code = result.get('output', {}).get('layer_code', '')
 
             logger.debug(f"Create function layer | layer-name: {layer_name} | layer_code: {layer_code}")
 
         except Exception as e:
-            logger.error(
-                f"Create function layer failed | layer-name: {name}, Error: {str(e)}",
-                exc_info=True
-            )
-        finally:
-            return layer_code
+            raise FunctionLayerError(
+                f"Function layer create failed: {str(e)}", error_code=2102
+            ) from e
+
+        return layer_code
 
     async def to_oss(
             self,
             func_type: FunctionType,
             signed_url: Optional[str] = None,
-            function_layer_created: bool = False
     ) -> None:
         """Upload function package to OSS storage."""
         url = signed_url or self.oss_signed_url
@@ -277,7 +338,6 @@ class FunctionComponentModel(BaseModel):
                 filepath=self.filepath,
                 classname=self.classname,
                 requirements_path=self.requirements_path,
-                function_layer_created=function_layer_created,
             )
 
             with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
@@ -304,6 +364,41 @@ class FunctionComponentModel(BaseModel):
             raise OSSUploadError(
                 f"Package upload failed: {str(e)}", error_code=2003, endpoint=url
             ) from e
+
+    async def get_layer(
+            self,
+            layer_code: str) -> str:
+        """Get FC layer status."""
+        try:
+            i=0
+            while i<3:
+                result = await client_fc(
+                    FC_API_KEY,
+                    FC_LAYER_QUERY_API,
+                    {
+                        "layer_code": layer_code,
+                    },
+                    'GET',
+                )
+                status = result.get('output', {}).get('status', '')
+                if status != 'SUCCESS':
+                    i += 1
+                    logger.debug(f"Load function layer({i}) | layer_code: {layer_code} | Status: {status}")
+                    time.sleep(10)
+                else:
+                    break
+
+            logger.debug(f"Load function layer | layer_code: {layer_code} | Status: {status}")
+            if status != 'SUCCESS':
+                raise FunctionLayerError(f"Function layer create failed: {status}", error_code=2103)
+
+            return status
+
+        except Exception as e:
+            logger.error(
+                f"Load function layer failed | layer_code: {layer_code}, Error: {str(e)}",
+                exc_info=True
+            )
 
     def _clean_temp_files(self, tmp_path: str) -> None:
         """Cleanup temporary deployment files."""
@@ -404,6 +499,10 @@ class AgenticRLFunctionComponent(Models, BaseModel):
         default=None,
         description="Function name"
     )
+    timeout: Optional[int] = Field(
+        default=None,
+        description="Function timeout"
+    )
 
     # for register
     fcmodel: Optional[FunctionComponentModel] = Field(
@@ -417,11 +516,11 @@ class AgenticRLFunctionComponent(Models, BaseModel):
     )
 
     entity_id: Optional[str] = Field(
-        default='',
+        default=None,
         description="System-generated registration identifier"
     )
     instance_id: Optional[str] = Field(
-        default='',
+        default=None,
         description="Deployed instance identifier"
     )
     instance_status: Optional[int] = Field(
@@ -429,11 +528,11 @@ class AgenticRLFunctionComponent(Models, BaseModel):
         description="Current instance state (-1=Unknown, 0=Initialized, 1=Deploying, 2=Active)"
     )
     instance_url: Optional[str] = Field(
-        default='',
+        default=None,
         description="Endpoint URL for deployed instance"
     )
     instance_token: Optional[str] = Field(
-        default='',
+        default=None,
         description="Authentication token for instance access"
     )
 
@@ -446,22 +545,6 @@ class AgenticRLFunctionComponent(Models, BaseModel):
             oss_url: Optional[str] = None,
     ) -> ResponseFC:
         """Register function in the deployment system."""
-        try:
-            # Create function layer
-            if FC_OFFLINE_INSTALLATION:
-                if self.runtime is None:
-                    self.runtime = FunctionComponentRuntime()
-                self.runtime.layer_code = await self.fcmodel.create_layer()
-
-        except Exception as e:
-            logger.error(
-                f"Function layer create failed | URL: {url}, Error: {str(e)}",
-                exc_info=True
-            )
-            raise FunctionLayerError(
-                f"Function layer create failed: {str(e)}", error_code=2102
-            ) from e
-
         try:
             # Handle OSS configuration
             if oss_id and oss_url:
@@ -479,9 +562,28 @@ class AgenticRLFunctionComponent(Models, BaseModel):
             await self.fcmodel.to_oss(
                 func_type=self.type,
                 signed_url=self.fcmodel.oss_signed_url,
-                function_layer_created=self.runtime is not None and self.runtime.layer_code is not None,
             )
 
+            # Create function layer
+            if FC_LAYER_USED:
+                if self.runtime is None:
+                    self.runtime = FunctionComponentRuntime()
+                self.runtime.layer_code = await self.fcmodel.create_layer()
+
+        except FunctionLayerError as e:
+            logger.error(
+                f"Function layer create failed | URL: {self.fcmodel.oss_signed_url}, Error: {str(e)}",
+                exc_info=True
+            )
+            return ResponseFC(
+                status=Status(
+                    task=StatusType.FAILED,
+                    name='DeploymentError',
+                    code=524,
+                    message=f"Function layer deployment failed: {str(e)}"
+                ),
+                output={}
+            )
         except Exception as e:
             logger.error(
                 f"Registration failed | Type: {self.type.name}, "
@@ -492,8 +594,8 @@ class AgenticRLFunctionComponent(Models, BaseModel):
                 status=Status(
                     task=StatusType.FAILED,
                     name='DeploymentError',
-                    code=524,
-                    message=f"Full deployment failed: {str(e)}"
+                    code=525,
+                    message=f"Function deployment failed: {str(e)}"
                 ),
                 output={}
             )
@@ -568,11 +670,16 @@ class AgenticRLFunctionComponent(Models, BaseModel):
             if not target_entity_id:
                 raise ValueErrorWithCode("No valid registration ID provided", error_code=2200)
 
+            if FC_LAYER_USED:
+                await self.fcmodel.get_layer(layer_code=self.runtime.layer_code)
+
             # Load function instance
             runtime = runtime or self.runtime
+            runtime = deep_remove_none({**runtime.model_dump()}) if runtime else {}
             job_id = generate_random_id()
             url = f"{FC_LOAD_API}/jobId-{job_id}/{target_entity_id}"
-            result = await client_fc(FC_API_KEY, url, {**runtime.model_dump()} if runtime else {})
+
+            result = await client_fc(FC_API_KEY, url, runtime)
             self.instance_id = result.get('output', {}).get('instanceId', '')
             if not self.instance_id:
                 raise FunctionLoadError(f"Empty instance ID received: {result}", error_code=2201)
@@ -808,8 +915,9 @@ class TuningModel(BaseModel):
     """Core configuration model for managing model tuning tasks."""
 
     name: str = Field(default='agentic-rl', min_length=1, max_length=256)
-    fcs: List[AgenticRLFunctionComponent] = []
-    datasets: Datasets = Datasets()
+    functions: List[AgenticRLFunctionComponent] = []
+    #datasets: Datasets = Datasets()
+    datasets: List[Dataset] = []
     model: FoundationModel = FoundationModel()
     training: Training = Training()
     observability: Optional[Observability] = Observability()
@@ -818,7 +926,7 @@ class TuningModel(BaseModel):
             self,
             lazy_load: bool = True,
     ) -> tuple[List[str], List[str], List[str], List[str]]:
-        """Register function compute components (FCs) for the tuning job."""
+        """Register function compute components (functions) for the tuning job."""
         entity_rollout_ids = []
         entity_reward_ids = []
         entity_group_reward_ids = []
@@ -827,7 +935,7 @@ class TuningModel(BaseModel):
         instance_group_reward_ids = []
 
         try:
-            for fc in self.fcs:
+            for fc in self.functions:
                 if fc.entity_id:
                     entity_id = fc.entity_id
                 else:
@@ -876,16 +984,44 @@ class TuningModel(BaseModel):
         return (entity_rollout_ids, entity_reward_ids, entity_group_reward_ids,
                 instance_rollout_ids, instance_reward_ids, instance_group_reward_ids)
 
-    async def register_datasets(self) -> tuple[List[str], List[str]]:
+    async def upload_datasets(
+            self,
+            training_files: Union[List[str], str] = None,
+            validation_files: Union[List[str], str] = None,
+    ) -> tuple[List[str], List[str]]:
         """Register and validate training/validation datasets."""
+        uploaded_training_ids = []
+        uploaded_validation_ids = []
         try:
+            if training_files:
+                self.datasets = []
+                for f in training_files:
+                    ds = Dataset(
+                        type=DatasetsType.TRAINING,
+                        data_source_type=DataSourceType.FILE_ID,
+                        file_name=f)
+                    self.datasets.append(ds)
+
+                if validation_files:
+                    for f in validation_files:
+                        ds = Dataset(
+                            type=DatasetsType.VALIDATION,
+                            data_source_type=DataSourceType.FILE_ID,
+                            file_name=f)
+                        self.datasets.append(ds)
+
             # Perform dataset validation and upload
-            await self.datasets.upload_datasets()
+            for ds in self.datasets:
+                ds_id = await ds.upload_dataset()
+                if ds.type == DatasetsType.TRAINING and ds_id is not None:
+                    uploaded_training_ids.append(ds_id)
+                elif ds.type == DatasetsType.VALIDATION and ds_id is not None:
+                    uploaded_validation_ids.append(ds_id)
 
             logger.info(
-                f"Successfully registered datasets: "
-                f"{len(self.datasets.uploaded_training_ids)} training, "
-                f"{len(self.datasets.uploaded_validation_ids)} validation"
+                f"Successfully datasets registration: "
+                f"{len(uploaded_training_ids)} training, "
+                f"{len(uploaded_validation_ids)} validation"
             )
 
         except Exception as e:
@@ -898,18 +1034,18 @@ class TuningModel(BaseModel):
                 "Critical failure in dataset registration process", error_code=2600
             ) from e
 
-        return self.datasets.uploaded_training_ids, self.datasets.uploaded_validation_ids
+        return uploaded_training_ids, uploaded_validation_ids
 
     def get_entity_ids(self, type: FunctionType):
         ids = []
-        for fc in self.fcs:
+        for fc in self.functions:
             if type == fc.type and fc.entity_id:
                 ids.append(fc.entity_id)
         return ids
 
     def get_runtimes(self, type: FunctionType):
         runtimes = []
-        for fc in self.fcs:
+        for fc in self.functions:
             if type == fc.type and fc.runtime:
                 runtimes.append(fc.runtime.model_dump())
         return runtimes
@@ -917,14 +1053,14 @@ class TuningModel(BaseModel):
     def get_names(self, type: FunctionType):
         """Get name values for function components of the given type."""
         names = []
-        for fc in self.fcs:
+        for fc in self.functions:
             if type == fc.type:
                 names.append(getattr(fc, 'name', None))
         return names
 
     def set_names(self, type: FunctionType):
         """Set name values for function components of the given type."""
-        for fc in self.fcs:
+        for fc in self.functions:
             if type == fc.type and not fc.name:
                 fc.name = '-'.join((str(fc.type), generate_random_id()[:8]))
                 logger.debug(f"Generate a random name: {fc.name} for {type}")
@@ -932,15 +1068,23 @@ class TuningModel(BaseModel):
     def get_weights(self, type: FunctionType):
         """Get weight values for function components of the given type."""
         weights = []
-        for fc in self.fcs:
+        for fc in self.functions:
             if type == fc.type:
                 weights.append(getattr(fc, 'weight', None))
         return weights
 
+    def get_timeouts(self, type: FunctionType):
+        """Get timeout values for function components of the given type."""
+        timeouts = []
+        for fc in self.functions:
+            if type == fc.type:
+                timeouts.append(getattr(fc, 'timeout', None))
+        return timeouts
+
     def get_reward_metric_weights(self, type: FunctionType):
         """Get reward_metric_weight values for function components of the given type."""
         metric_weights = []
-        for fc in self.fcs:
+        for fc in self.functions:
             if type == fc.type and type == FunctionType.REWARD:
                 metric_weights.append(getattr(fc, 'reward_metric_weight', None))
         return metric_weights
@@ -962,6 +1106,7 @@ class TuningModel(BaseModel):
         self.set_names(type)
         function_names = self.get_names(type)
         function_weights = self.get_weights(type)
+        function_timeouts = self.get_timeouts(type)
         function_metric_weights = self.get_reward_metric_weights(type)
 
         id_str = id_str or get_func_type_id(type)
@@ -976,6 +1121,10 @@ class TuningModel(BaseModel):
             # Add weight if present (for reward/group_reward types)
             if i < len(function_weights) and function_weights[i] is not None:
                 function['weight'] = function_weights[i]
+
+            # Add timeout if present (for reward/group_reward types)
+            if i < len(function_timeouts) and function_timeouts[i] is not None:
+                function['timeout'] = function_timeouts[i]
 
             # Add reward_metric_weight if present (for reward/group_reward types)
             if i < len(function_metric_weights) and function_metric_weights[i] is not None:
@@ -1003,6 +1152,7 @@ class TuningModel(BaseModel):
             runtimes: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None,
             names: Optional[Union[List[str], str]] = None,
             weights: Optional[Union[List[float], float]] = None,
+            timeouts: Optional[Union[List[int], int]] = None,
             reward_metric_weights: Optional[Union[List[Dict[str, float]], Dict[str, float]]] = None,
             workspace_dir: Optional[str] = './'):
 
@@ -1011,6 +1161,7 @@ class TuningModel(BaseModel):
         runtimes = [runtimes] if isinstance(runtimes, Dict) else runtimes
         names = [names] if isinstance(names, str) else names
         weights = [weights] if isinstance(weights, float) else weights
+        timeouts = [timeouts] if isinstance(timeouts, int) else timeouts
         reward_metric_weights = [reward_metric_weights] if isinstance(reward_metric_weights, Dict) else reward_metric_weights
 
         len_classpaths = len(classpaths) if classpaths else 0
@@ -1018,25 +1169,27 @@ class TuningModel(BaseModel):
         len_runtimes = len(runtimes) if runtimes else 0
         len_names = len(names) if names else 0
         len_weights = len(weights) if weights else 0
+        len_timeouts = len(timeouts) if timeouts else 0
         len_reward_metric_weights = len(reward_metric_weights) if reward_metric_weights else 0
 
         if len_classpaths == 0 and len_entity_ids == 0:
-            logger.warning("The inputs of classpaths and entity_ids are none.")
+            logger.warning(f"The inputs of classpaths and entity_ids for {type} are none.")
             return []
 
         if len_entity_ids > 0: # Prefer entity_ids over classpaths when available
             for i in range(len_entity_ids):
-                self.fcs.append(AgenticRLFunctionComponent(
+                self.functions.append(AgenticRLFunctionComponent(
                     type=type,
                     entity_id=entity_ids[i],
                     runtime=FunctionComponentRuntime(**runtimes[i]) if runtimes and i < len_runtimes else None,
                     name=names[i] if names and i < len_names else None,
                     weight=weights[i] if weights and i < len_weights else None,
+                    timeout=timeouts[i] if timeouts and i < len_timeouts else None,
                     reward_metric_weight=reward_metric_weights[i] if reward_metric_weights and i < len_reward_metric_weights else None,
                 ))
         else:
             for i in range(len_classpaths):
-                self.fcs.append(AgenticRLFunctionComponent(
+                self.functions.append(AgenticRLFunctionComponent(
                     type=type,
                     fcmodel=FunctionComponentModel(
                         zipdir=workspace_dir,
@@ -1044,10 +1197,11 @@ class TuningModel(BaseModel):
                     runtime=FunctionComponentRuntime(**runtimes[i]) if runtimes and i < len_runtimes else None,
                     name=names[i] if names and i < len_names else None,
                     weight=weights[i] if weights and i < len_weights else None,
+                    timeout=timeouts[i] if timeouts and i < len_timeouts else None,
                     reward_metric_weight=reward_metric_weights[i] if reward_metric_weights and i < len_reward_metric_weights else None,
                 ))
 
-        return self.fcs
+        return self.functions
 
     def check_function_names(self) -> bool:
         """
@@ -1059,7 +1213,7 @@ class TuningModel(BaseModel):
         seen_names = {}
         duplicate_found = False
 
-        for index, fc in enumerate(self.fcs):
+        for index, fc in enumerate(self.functions):
             if not hasattr(fc, 'name'):
                 logger.error(f"Function component at index {index} is missing a 'name' attribute")
                 duplicate_found = True
@@ -1086,5 +1240,5 @@ class TuningModel(BaseModel):
 class AgenticRLTuning(Models, BaseModel):
     """Main interface class for model tuning operations."""
 
-    tuning_id: Optional[str] = ''
+    tuning_id: Optional[str] = None
     tuning: TuningModel = TuningModel()

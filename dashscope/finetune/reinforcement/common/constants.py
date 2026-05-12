@@ -20,9 +20,6 @@ def get_int_env(env_var: str, default: int) -> int:
     except ValueError:
         return default
 
-# Debug mode configuration
-DEBUG_AGENTIC_RL = get_bool_env('DEBUG_AGENTIC_RL', False)
-
 # Base URL configuration
 DASHSCOPE_HTTP_BASE_URL = os.environ.get(
     'DASHSCOPE_HTTP_BASE_URL',
@@ -100,9 +97,7 @@ FC_LAYER_QUERY_API = os.environ.get( # GET
 # --------------------------
 FC_FILES_START = 'start.sh'
 FC_PYPI_LIB = os.environ.get(
-    'FC_PYPI_LIB',
-    f'dashscope-{__version__}-py3-none-any.whl' if DEBUG_AGENTIC_RL
-    else 'dashscope'
+    'FC_PYPI_LIB', 'dashscope'
 )
 FC_PYPI_REPO = os.environ.get(
     'FC_PYPI_REPO',
@@ -113,19 +108,19 @@ FC_SERVER_CLASSPATH = os.environ.get(
     'dashscope.finetune.reinforcement.component.server.server'
 )
 FC_WORKERS_COUNT = get_int_env('FC_WORKERS_COUNT', 2)
-FC_OFFLINE_INSTALLATION = get_bool_env('FC_OFFLINE_INSTALLATION', True)
+FC_LAYER_USED = get_bool_env('FC_LAYER_USED', True)
 FC_LAYER_NAME = "fc_layer"
 FC_REQUIREMENTS_FILE = "./requirements.txt"
+FC_ZIP_EXCLUDE_PATTERNS = os.environ.get(
+    'FC_ZIP_EXCLUDE_PATTERNS',
+    '.git,.gitignore,.DS_Store,.vscode,.Python,.env,.venv,.idea,__pycache__,'
+    '*.swp,*.egg,*.egg-info,*.pyc,*.md,*.log,*.tmp,*.bak,'
+    'build,develop-eggs,.eggs,test,tests,tmp,temp,data'
+)
+FC_OSS_FILE_SIZE_WARNING = get_int_env("FC_OSS_FILE_SIZE_WARNING", 200 * 1024 * 1024) # 200M
 
 # --------------------------
 # Tuning Configuration
 # --------------------------
 TUNING_MODE_NAME = 'reinforcement'
 ENABLE_TRAJECTORY = get_bool_env('ENABLE_TRAJECTORY', True)
-
-# --------------------------
-# Configuration Validation
-# --------------------------
-# if DEBUG_AGENTIC_RL:
-#     logger.debug(f"Debug mode enabled. Using base URL: {DASHSCOPE_HTTP_BASE_URL}")
-#     logger.debug(f"FC_PYPI_LIB: {FC_PYPI_LIB}")

@@ -12,16 +12,6 @@ import sys
 import time
 from typing import Any, Dict
 
-from opentelemetry import trace as otel_trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-
-_exporter = InMemorySpanExporter()
-_provider = TracerProvider()
-_provider.add_span_processor(SimpleSpanProcessor(_exporter))
-otel_trace.set_tracer_provider(_provider)
-
 from dashscope.finetune.reinforcement import logger
 from dashscope.finetune.reinforcement.component.processor.abstract_group_reward_processor import AbstractGroupRewardProcessor
 from dashscope.finetune.reinforcement import GroupRewardInput, GroupRewardOutput, GroupReward, Reward, TaskStatus

@@ -14,7 +14,7 @@ cd ../
 # ================= Configuration ==================
 #VERSION="1.25.16"
 SERVICE_TYPE="group_reward"                          # group_reward/reward|rollout
-PROCESSOR_CLASS="functions.reward.demo_group_reward.DemoGroupRewardProcessor"  # Full class path
+PROCESSOR_CLASS="functions.reward.group_reward.DemoGroupRewardProcessor"  # Full class path
 PYPI_REPO="https://mirrors.aliyun.com/pypi/simple/"
 #SDK_PACKAGE="dashscope-${VERSION}-py3-none-any.whl fastapi pyyaml uvicorn"
 REQUIREMENTS_FILE="./requirements.txt"

@@ -6,6 +6,10 @@ import asyncio
 import concurrent.futures
 import inspect
 import os
+import random
+import sys
+import threading
+import time
 import types
 from typing import Any, Dict, Optional
 
@@ -24,6 +28,97 @@ from dashscope.finetune.reinforcement.component.observability.tracing import is_
 
 
 _DEBUG_LLM_OUTPUT = os.environ.get("AGENTIC_RL_DEBUG_LLM_OUTPUT", "").lower() in ("1", "true", "yes", "y")
+_DEBUG_TRACE_CLIENT_BRANCH = os.environ.get("AGENTIC_RL_DEBUG_TRACE_CLIENT_BRANCH", "").lower() in (
+    "1",
+    "true",
+    "yes",
+    "y",
+)
+
+
+def _debug_sample_rate() -> float:
+    raw = os.environ.get("AGENTIC_RL_DEBUG_TRACE_CLIENT_SAMPLE_RATE", "1.0")
+    try:
+        v = float(raw)
+    except Exception:
+        return 1.0
+    if v <= 0.0:
+        return 0.0
+    if v >= 1.0:
+        return 1.0
+    return v
+
+
+_DEBUG_TRACE_CLIENT_SAMPLE_RATE = _debug_sample_rate()
+
+
+def _trace_id_hex_best_effort() -> Optional[str]:
+    try:
+        from opentelemetry.trace import format_trace_id
+
+        ctx = otel_trace.get_current_span().get_span_context()
+        if ctx.is_valid:
+            return format_trace_id(ctx.trace_id)
+    except Exception:
+        return None
+    return None
+
+
+def _loop_id_best_effort() -> Optional[int]:
+    try:
+        loop = asyncio.get_running_loop()
+        return id(loop)
+    except Exception:
+        return None
+
+
+def _dbg_trace_client(event: str, **fields: Any) -> None:
+    """Lightweight branch logging for diagnosing trace_client hangs.
+
+    Enabled via env: AGENTIC_RL_DEBUG_TRACE_CLIENT_BRANCH=1
+    """
+    if not _DEBUG_TRACE_CLIENT_BRANCH:
+        return
+    if _DEBUG_TRACE_CLIENT_SAMPLE_RATE < 1.0:
+        try:
+            if random.random() >= _DEBUG_TRACE_CLIENT_SAMPLE_RATE:
+                return
+        except Exception:
+            return
+    try:
+        base = {
+            "event": event,
+            "pid": os.getpid(),
+            "tid": threading.get_ident(),
+            "loop_id": _loop_id_best_effort(),
+            "trace_id": _trace_id_hex_best_effort(),
+        }
+        base.update(fields)
+        # Stable, grep-friendly single line.
+        logger.info("[trace_client_branch] %s", base)
+    except Exception:
+        return
+
+
+def _orig_create_is_coroutine_function(orig_create: Any) -> bool:
+    """True when *orig_create* unwraps to an ``async def`` (the real OpenAI async API).
+
+    ``openai-python`` wraps ``AsyncCompletions.create`` with decorators; the bound
+    method's ``__func__`` is often a plain ``def`` forwarding wrapper, so
+    ``inspect.iscoroutinefunction(completions.create)`` is **False** even for
+    ``AsyncOpenAI``. Follow ``functools.wraps`` / ``__wrapped__`` via
+    :func:`inspect.unwrap` before calling :func:`inspect.iscoroutinefunction`.
+    """
+    try:
+        target = inspect.unwrap(orig_create)
+    except (ValueError, TypeError, AttributeError):
+        target = orig_create
+        if inspect.ismethod(target):
+            try:
+                target = inspect.unwrap(target.__func__)
+            except (ValueError, TypeError, AttributeError):
+                target = target.__func__
+    return bool(inspect.iscoroutinefunction(target))
 
 
 class _SyncCreateCompletionAdapter:
@@ -175,6 +270,21 @@ def _best_effort_mark_error(inv: Any, exc: BaseException) -> None:
         pass
 
 
+def _best_effort_cm_exit(cm: Any, exc: Optional[BaseException]) -> None:
+    """Best-effort close a context manager with explicit exc info.
+
+    We avoid relying on sys.exc_info() at arbitrary frames; callers supply the
+    actual exception instance (or None) that should be reflected in __exit__.
+    """
+    try:
+        if exc is None:
+            cm.__exit__(None, None, None)
+        else:
+            cm.__exit__(type(exc), exc, exc.__traceback__)
+    except Exception:
+        return
+
+
 async def _await_and_apply(inv: Any, awaitable: Any) -> Any:
     """Await an awaitable completion and then populate invocation.
 
@@ -204,18 +314,22 @@ def _run_coroutine_blocking(coro: Any) -> Any:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
+        _dbg_trace_client("run_coroutine_blocking:no_running_loop")
         return asyncio.run(coro)
 
     otel_ctx = otel_context.get_current()
 
     def _runner() -> Any:
+        _dbg_trace_client("run_coroutine_blocking:thread_runner_enter")
         token = otel_context.attach(otel_ctx)
         try:
             return asyncio.run(coro)
         finally:
             otel_context.detach(token)
+            _dbg_trace_client("run_coroutine_blocking:thread_runner_exit")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        _dbg_trace_client("run_coroutine_blocking:submit_thread")
         return ex.submit(_runner).result()
 
 
@@ -289,48 +403,150 @@ def instrument_openai_chat_completions(
     orig_create = completions.create
     h = handler if handler is not None else get_handler()
 
-    if inspect.iscoroutinefunction(orig_create):
+    if _orig_create_is_coroutine_function(orig_create):
 
         async def async_wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             with h.llm() as inv:
                 log_trace_id("llm")
                 _fill_llm_invocation_from_openai_kwargs(inv, kwargs, provider)
                 try:
+                    t0 = time.perf_counter()
+                    _dbg_trace_client(
+                        "llm_async_wrapper:enter",
+                        provider=provider,
+                        create_is_coro=True,
+                    )
                     completion = await orig_create(*args, **kwargs)
+                    _dbg_trace_client(
+                        "llm_async_wrapper:orig_create_done",
+                        elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                        completion_type=type(completion).__name__,
+                    )
                     _apply_openai_completion_to_invocation(inv, completion)
-                    # Return unwrapped payload so async callers (e.g. LangChain) never
-                    # ``await`` wrapper types like LegacyAPIResponse.
-                    return unwrap_openai_completion(completion)
+                    # Return the client's native response object (often ``LegacyAPIResponse``
+                    # or similar) so LangChain / OpenAI stacks can call ``.parse()`` / access
+                    # HTTP-wrapper fields. GenAI attributes are filled from the same object
+                    # via ``unwrap_openai_completion`` inside ``_apply_openai_completion_to_invocation``.
+                    _dbg_trace_client(
+                        "llm_async_wrapper:return",
+                        completion_type=type(completion).__name__,
+                        return_has_parse=callable(getattr(completion, "parse", None)),
+                    )
+                    return completion
                 except Exception as e:
                     _best_effort_mark_error(inv, e)
+                    _dbg_trace_client(
+                        "llm_async_wrapper:error",
+                        err_type=type(e).__name__,
+                        err=str(e),
+                    )
                     raise
 
         completions.create = types.MethodType(async_wrapper, completions)
     else:
 
         def sync_wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            with h.llm() as inv:
+            t0 = time.perf_counter()
+            _dbg_trace_client(
+                "llm_sync_wrapper:enter",
+                provider=provider,
+                create_is_coro=False,
+            )
+            # Some OpenAI-compatible stacks expose a *sync* create() that returns an
+            # awaitable. In that case we must keep the invocation open until the
+            # awaitable completes — but we must not block the current thread or
+            # create a new event loop thread (that path has been shown to hang).
+            #
+            # Implementation:
+            # - If create() returns a normal completion: do the usual sync path.
+            # - If create() returns an awaitable: manually enter/exit the handler's
+            #   context manager inside the returned awaitable, and attach the caller
+            #   OTel context when awaiting, so spans remain parented correctly.
+            cm = h.llm()
+            inv = cm.__enter__()
+            returned_awaitable = False
+            outer_exc: Optional[BaseException] = None
+            try:
                 log_trace_id("llm")
                 _fill_llm_invocation_from_openai_kwargs(inv, kwargs, provider)
-                try:
-                    completion = orig_create(*args, **kwargs)
-                    # Some clients return an awaitable even though create() is sync.
-                    # We must resolve it before leaving ``with h.llm()``: otherwise
-                    # ``__exit__`` runs ``stop_llm`` while output_messages is still empty.
-                    if inspect.isawaitable(completion):
-                        completion = _run_coroutine_blocking(
-                            _await_and_apply(inv, completion)
+                completion = orig_create(*args, **kwargs)
+                is_awaitable = bool(inspect.isawaitable(completion))
+                _dbg_trace_client(
+                    "llm_sync_wrapper:orig_create_returned",
+                    elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                    returned_type=type(completion).__name__,
+                    returned_is_awaitable=is_awaitable,
+                )
+                if not is_awaitable:
+                    _apply_openai_completion_to_invocation(inv, completion)
+                    # Wrap the original response (do not unwrap here) so ``.parse()`` and
+                    # wrapper attributes remain available to LangChain / OpenAI clients.
+                    _dbg_trace_client(
+                        "llm_sync_wrapper:return_sync",
+                        completion_type=type(completion).__name__,
+                        return_has_parse=callable(getattr(completion, "parse", None)),
+                    )
+                    return _sync_create_return_value(completion)
+
+                otel_ctx = otel_context.get_current()
+                awaitable = completion
+
+                async def _wrapped() -> Any:
+                    token = None
+                    exc: Optional[BaseException] = None
+                    try:
+                        _dbg_trace_client("llm_sync_wrapper:awaitable_wrap:enter")
+                        token = otel_context.attach(otel_ctx)
+                        resolved = await _await_and_apply(inv, awaitable)
+                        _dbg_trace_client(
+                            "llm_sync_wrapper:awaitable_wrap:done",
+                            total_elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                            completion_type=type(resolved).__name__,
+                            return_has_parse=callable(getattr(resolved, "parse", None)),
                         )
-                    else:
-                        _apply_openai_completion_to_invocation(inv, completion)
-                    # Unwrap HTTP/wrapper objects to the real completion dict/object first;
-                    # then wrap in ``_SyncCreateCompletionAdapter`` so mistaken ``await`` /
-                    # ``.parse()`` on sync ``create`` still work. Order matters: adapter
-                    # expects the inner payload shape after unwrap.
-                    return _sync_create_return_value(unwrap_openai_completion(completion))
-                except Exception as e:
-                    _best_effort_mark_error(inv, e)
-                    raise
+                        return _sync_create_return_value(resolved)
+                    except asyncio.CancelledError as e:
+                        exc = e
+                        _best_effort_mark_error(inv, e)
+                        _dbg_trace_client(
+                            "llm_sync_wrapper:awaitable_wrap:cancelled",
+                            total_elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                        )
+                        raise
+                    except Exception as e:
+                        exc = e
+                        _best_effort_mark_error(inv, e)
+                        _dbg_trace_client(
+                            "llm_sync_wrapper:awaitable_wrap:error",
+                            err_type=type(e).__name__,
+                            err=str(e),
+                            total_elapsed_ms=int((time.perf_counter() - t0) * 1000),
+                        )
+                        raise
+                    finally:
+                        # Ensure stop/end happens under the caller context.
+                        _best_effort_cm_exit(cm, exc)
+                        if token is not None:
+                            try:
+                                otel_context.detach(token)
+                            except Exception:
+                                pass
+
+                returned_awaitable = True
+                return _wrapped()
+            except Exception as e:
+                outer_exc = e
+                _best_effort_mark_error(inv, e)
+                _dbg_trace_client(
+                    "llm_sync_wrapper:error",
+                    err_type=type(e).__name__,
+                    err=str(e),
+                )
+                raise
+            finally:
+                # If we returned an awaitable above, its finally will __exit__.
+                if not returned_awaitable:
+                    _best_effort_cm_exit(cm, outer_exc)
 
         completions.create = types.MethodType(sync_wrapper, completions)
 

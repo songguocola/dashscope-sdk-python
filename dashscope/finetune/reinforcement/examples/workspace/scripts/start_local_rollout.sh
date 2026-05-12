@@ -14,7 +14,7 @@ cd ../
 # ================= Configuration ==================
 #VERSION="1.25.16"
 SERVICE_TYPE="rollout"                          # reward|rollout
-PROCESSOR_CLASS="functions.rollout.demo_rollout.DemoRolloutProcessor"  # Full class path
+PROCESSOR_CLASS="functions.rollout.rollout2.DemoRolloutProcessor"  # Full class path
 PYPI_REPO="https://mirrors.aliyun.com/pypi/simple/"
 #SDK_PACKAGE="dashscope-${VERSION}-py3-none-any.whl fastapi pyyaml uvicorn"
 REQUIREMENTS_FILE="./requirements.txt"

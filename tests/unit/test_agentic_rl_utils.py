@@ -89,7 +89,7 @@ class TestAgenticRLUtils:
         # Execute function
         create_deployment_files(
             type=FunctionType.ROLLOUT,
-            zipdir=str(test_dir),
+            dirpath=str(test_dir),
             filepath="processor.py",
             classname="DemoProcessor",
             requirements_path="requirements.txt"
@@ -113,7 +113,7 @@ class TestAgenticRLUtils:
 
         create_deployment_files(
             type=FunctionType.REWARD,
-            zipdir=str(test_dir),
+            dirpath=str(test_dir),
             filepath="module/processor.py",
             classname="MyProcessor",
             requirements_path=""
@@ -182,9 +182,10 @@ class TestAgenticRLUtils:
         }
 
         masked = deep_mask(data)
-        assert isinstance(masked["api_key"], SecretStr)
+
+        assert masked["api_key"] == 'secr****alue'
         assert masked["normal_field"] == "visible"
-        assert isinstance(masked["nested"]["password"], SecretStr)
+        assert masked["nested"]["password"] == '****'
         assert masked["nested"]["info"] == "public"
 
     def test_deep_mask_pydantic_model(self):
@@ -198,9 +199,9 @@ class TestAgenticRLUtils:
         masked = deep_mask(model)
 
         # Validate sensitive fields are masked
-        assert isinstance(masked['api_key'], SecretStr)
+        assert masked["api_key"] == 'mode****cret'
         assert masked['normal_field'] == "model_data"
-        assert isinstance(masked['nested']["token"], SecretStr) == False
+        assert masked['nested']["token"] == 'model_token'
         assert masked['nested']["data"] == "model_info"
 
     def test_deep_mask_complex_structure(self):
@@ -215,10 +216,11 @@ class TestAgenticRLUtils:
         ]
 
         masked = deep_mask(data)
-        assert isinstance(masked[0]["password"], SecretStr)
-        assert isinstance(masked[1]["api_token"], SecretStr)
-        assert isinstance(masked[2][0]["trigger_token"], SecretStr)
-        assert isinstance(masked[2][1]["instance_token"], SecretStr)
+
+        assert masked[0]["password"] == '****'
+        assert masked[1]["api_token"] == '****'
+        assert masked[2][0]["trigger_token"] == '****'
+        assert masked[2][1]["instance_token"] == '****'
 
     def test_set_api_key_with_argument(self):
         """Test setting API key via function argument."""

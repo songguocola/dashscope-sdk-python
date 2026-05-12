@@ -1,60 +1,72 @@
 # config.yaml
-job_name: "test-0428-1"
+job_name: "agentic-rl"
 workspace_dir: "./"
 
-model: "qwen3-4b-instruct-2507"
+model: "qwen3.5-9b"
 mode: "reinforcement"
+
+datasets:
+  - type: "training"
+    data_source_type: "file_id"
+    file_name: "./data/calc_train_min.jsonl"
+  - type: "validation"
+    data_source_type: "file_id"
+    file_name: "./data/calc_validation_min.jsonl"
 
 functions:
   - type: "rollout"
-    names: "rollout-1"
-    classpaths: "functions.rollout.demo_rollout.CalcXRolloutProcessor"
-    runtimes:
+    name: "rollout-1"
+    timeout: 600
+    fcmodel:
+      classpath: "functions.rollout.rollout.CalcXRolloutProcessor"
+    runtime:
       cpu: 2
       memory_size: 4096
       disk_size: 512
       concurrency: 30
-      env: {}
       capacity: 30
       min_capacity: 30
       max_capacity: 60
       memory_scale_threshold: 0.6
       concurrency_scale_threshold: 0.6
+      env: {}
   - type: "reward"
-    names:
-      - "rewards-1"
-    weights:
-      - 1.0
-    classpaths:
-      - "functions.reward.demo_reward.DemoRewardProcessor"
-    runtimes:
-      - cpu: 2
-        memory_size: 4096
-        disk_size: 512
-        concurrency: 30
-        env: {}
-        capacity: 30
-        min_capacity: 30
-        max_capacity: 60
-        memory_scale_threshold: 0.6
-        concurrency_scale_threshold: 0.6
-#  - type: "group_reward"
-#    names:
-#      - "group-rewards-1"
-#    classpaths:
-#      - "functions.reward.demo_group_reward.DemoGroupRewardProcessor"
-#    runtimes:
-#      - cpu: 2
-#        memory_size: 4096
-#        disk_size: 10240
-#        concurrency: 10
-training_files:
-  - "./data/calc_train.jsonl"
-validation_files:
-  - "./data/calc_validation.jsonl"
+    name: "rewards-1"
+    weight: 1.0
+    timeout: 120
+    reward_metric_weight:
+      reward_metric_weightA: 0.3
+      reward_metric_weightB: 0.7
+    fcmodel:
+      classpath: "functions.reward.reward.DemoRewardProcessor"
+    runtime:
+      cpu: 2
+      memory_size: 4096
+      disk_size: 512
+      concurrency: 30
+      capacity: 30
+      min_capacity: 30
+      max_capacity: 60
+      memory_scale_threshold: 0.6
+      concurrency_scale_threshold: 0.6
+      env: {}
 
-hyper_parameters:
-  n_epochs: 1
-  learning_rate: 1e-4
-  max_prompt_length: 2048
-  batch_size: 128
+training:
+  hyper_parameters:
+    algorithm: "gspo"
+    batch_size: 64
+    eval_steps: 1
+    kl_loss_coef: 0.002
+    learning_rate: 2e-6
+    lr_scheduler_type: "linear"
+    max_length: 8192
+    n_epochs: 1
+    n_rollouts: 8
+    ppo_mini_batch_size: 8
+    save_steps: 100
+    save_strategy: "epoch"
+    save_total_limit: 1
+  resources:
+    charge_type: "mtu_postpaid"
+    mtu_spec_code: "MTU4"
+    mtu_capacity: 24

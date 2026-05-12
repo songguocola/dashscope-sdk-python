@@ -101,6 +101,12 @@ class RegistrationError(DeploymentError):
         super().__init__(f"Registration failed: {message}", error_code, resource_id)
 
 
+class DatasetsError(DeploymentError):
+    """Raised when update datasets fails in the deployment system"""
+    def __init__(self, message: str, error_code: int = 1460):
+        super().__init__(f"Datasets failed: {message}", error_code)
+
+
 class FunctionLoadError(DeploymentError):
     """Raised when loading a registered function into runtime fails"""
     def __init__(self, message: str, error_code: int = 1420, entity_id: str = None, error_log: Optional[str] = None):

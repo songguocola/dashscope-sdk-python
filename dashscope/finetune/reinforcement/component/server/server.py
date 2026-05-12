@@ -46,6 +46,7 @@ from dashscope.finetune.reinforcement.component.func_manager import FuncManager
 from dashscope.finetune.reinforcement.component.observability.tracing import (
     ensure_agentic_rl_baggage_span_processor,
     is_tracing_enabled,
+    maybe_force_flush_async,
     reset_upstream_trace_linkage,
     set_upstream_trace_linkage,
 )
@@ -190,6 +191,18 @@ async def startup_event():
         logger.info("[Server] OTel BaggageSpanProcessor registered")
 
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    """FastAPI shutdown event handler.
+
+    Best-effort force flush spans during graceful worker shutdown to reduce
+    tail-span loss during graceful worker shutdown. Force flush is controlled
+    by platform/internal runtime configuration (see AGENTIC_RL_FORCE_FLUSH_MODE).
+    """
+
+    await maybe_force_flush_async(reason="shutdown")
+
+
 @app.post("/api/v1")
 async def handle_endpoint(request: Request) -> JSONResponse:
     """
@@ -310,16 +323,8 @@ async def handle_endpoint(request: Request) -> JSONResponse:
             f"[Server] /api/v1 | func_type={func_type.value} | "
             f"success={success} | elapsed={elapsed}s"
         )
-        if is_tracing_enabled():
-            try:
-                from opentelemetry import trace as otel_trace
-                from opentelemetry.sdk.trace import TracerProvider
-                provider = otel_trace.get_tracer_provider()
-                if isinstance(provider, TracerProvider):
-                    provider.force_flush(timeout_millis=3000)
-                    logger.info("[Server] OTel force_flush completed")
-            except Exception:
-                pass
+        # Best-effort flush based on platform/internal env config.
+        await maybe_force_flush_async(reason="request")
 
 
 @app.get("/health")

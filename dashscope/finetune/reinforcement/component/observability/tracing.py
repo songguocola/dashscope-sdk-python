@@ -5,9 +5,9 @@ Enable tracing (install OpenTelemetry, e.g. ``pip install 'dashscope[agentic_rl_
 
 - ``ENABLE_TRAJECTORY=true``
 
-Optional: ``AGENTIC_RL_LOG_TRACE_ID=false`` disables ``logger.info`` lines that print the
+Optional: ``AGENTIC_RL_LOG_TRACE_ID=true`` enables ``logger.info`` lines that print the
 current W3C ``trace_id`` on processor / GenAI spans (see :func:`log_trace_id`).
-``AGENTIC_RL_LOG_LLM_TRACE_ID`` is still honored as a fallback when ``AGENTIC_RL_LOG_TRACE_ID`` is unset.
+Default is off for stable production workloads.
 
 With the SDK installed, :func:`ensure_agentic_rl_baggage_span_processor` registers
 :class:`~opentelemetry.processor.baggage.BaggageSpanProcessor` so
@@ -26,6 +26,7 @@ import json
 import os
 import threading
 import contextvars
+import asyncio
 from contextlib import contextmanager
 from enum import Enum
 from typing import Any, Dict, Iterator, Optional, Tuple
@@ -50,6 +51,11 @@ except ImportError:  # pragma: no cover
     _OTEL_AVAILABLE = False
 
 _ENV_ENABLE_TRAJECTORY_SHORT = "ENABLE_TRAJECTORY"
+_ENV_FORCE_FLUSH_MODE = "AGENTIC_RL_FORCE_FLUSH_MODE"
+_ENV_FORCE_FLUSH_TIMEOUT_MS = "AGENTIC_RL_FORCE_FLUSH_TIMEOUT_MS"
+
+_DEFAULT_FORCE_FLUSH_TIMEOUT_MS = 3000
+_MAX_FORCE_FLUSH_TIMEOUT_MS = 60_000
 
 _TRACER_NAME = "dashscope.finetune.reinforcement"
 # I/O preview limits for span attributes.
@@ -93,10 +99,122 @@ def is_tracing_enabled() -> bool:
     return _env_truthy(_ENV_ENABLE_TRAJECTORY_SHORT)
 
 
+class ForceFlushMode(str, Enum):
+    """When to force-flush spans to the exporter.
+
+    - none:     never force_flush (rely on BatchSpanProcessor schedule)
+    - shutdown: only force_flush during graceful shutdown hooks
+    - request:  force_flush at the end of each request (highest overhead)
+    """
+
+    NONE = "none"
+    SHUTDOWN = "shutdown"
+    REQUEST = "request"
+
+
+def _get_force_flush_mode() -> ForceFlushMode:
+    """Return configured force-flush mode.
+
+    Default is ``none`` to avoid introducing request-path latency coupling.
+    This switch is intended for platform/internal runtime configuration.
+    """
+
+    raw = os.environ.get(_ENV_FORCE_FLUSH_MODE, "").strip().lower()
+    if not raw:
+        return ForceFlushMode.NONE
+    for m in ForceFlushMode:
+        if raw == m.value:
+            return m
+    logger.warning(
+        "[OTel] Invalid %s=%r; valid: %s. Falling back to %s.",
+        _ENV_FORCE_FLUSH_MODE,
+        raw,
+        [m.value for m in ForceFlushMode],
+        ForceFlushMode.NONE.value,
+    )
+    return ForceFlushMode.NONE
+
+
+def _get_force_flush_timeout_ms() -> int:
+    raw = os.environ.get(_ENV_FORCE_FLUSH_TIMEOUT_MS, "").strip()
+    if not raw:
+        return _DEFAULT_FORCE_FLUSH_TIMEOUT_MS
+    try:
+        v = int(raw)
+    except Exception:
+        logger.warning(
+            "[OTel] Invalid %s=%r; using default 3000ms.",
+            _ENV_FORCE_FLUSH_TIMEOUT_MS,
+            raw,
+        )
+        return _DEFAULT_FORCE_FLUSH_TIMEOUT_MS
+    # Clamp to a sensible range so a bad env value doesn't hang shutdown.
+    return max(0, min(v, _MAX_FORCE_FLUSH_TIMEOUT_MS))
+
+
+def _should_force_flush(*, reason: str) -> bool:
+    """Return True if force flush is enabled for the given reason."""
+    mode = _get_force_flush_mode()
+    if mode == ForceFlushMode.NONE:
+        return False
+    if mode == ForceFlushMode.SHUTDOWN:
+        return reason == "shutdown"
+    if mode == ForceFlushMode.REQUEST:
+        return reason == "request"
+    return False
+
+
+def maybe_force_flush(*, reason: str) -> None:
+    """Best-effort force flush spans based on config.
+
+    - Never raises (silent degradation).
+    - No-ops when tracing is disabled or OTel SDK is unavailable.
+    - Uses ``AGENTIC_RL_FORCE_FLUSH_MODE`` and ``AGENTIC_RL_FORCE_FLUSH_TIMEOUT_MS``.
+    """
+
+    if not is_tracing_enabled():
+        return
+    if not _OTEL_AVAILABLE:
+        return
+
+    if not _should_force_flush(reason=reason):
+        return
+
+    try:
+        from opentelemetry.sdk.trace import TracerProvider
+    except Exception:
+        return
+
+    try:
+        provider = otel_trace.get_tracer_provider()
+        if not isinstance(provider, TracerProvider):
+            return
+        provider.force_flush(timeout_millis=_get_force_flush_timeout_ms())
+    except Exception:
+        # Keep silent to avoid impacting business flow / shutdown path.
+        return
+
+
+async def maybe_force_flush_async(*, reason: str) -> None:
+    """Async wrapper around :func:`maybe_force_flush` for async servers.
+
+    This avoids blocking the event loop when force flushing spans.
+    It preserves silent degradation semantics and the same env-driven decision logic.
+    """
+    # Fast-path: if force flush would no-op, return quickly without offloading.
+    if not is_tracing_enabled() or not _OTEL_AVAILABLE:
+        return
+    if not _should_force_flush(reason=reason):
+        return
+
+    try:
+        await asyncio.to_thread(maybe_force_flush, reason=reason)
+    except Exception:
+        return
+
+
 def _should_log_trace_id() -> bool:
-    raw = os.environ.get("AGENTIC_RL_LOG_TRACE_ID")
-    if raw is None:
-        raw = os.environ.get("AGENTIC_RL_LOG_LLM_TRACE_ID", "true")
+    raw = os.environ.get("AGENTIC_RL_LOG_TRACE_ID", "false")
     return raw.strip().lower() not in ("0", "false", "no")
 
 
@@ -156,6 +274,8 @@ def get_upstream_trace_linkage() -> Tuple[bool, Optional[str]]:
 def log_trace_id(role: str) -> None:
     """
     Log the current ``trace_id`` at ``logger.info`` level (stdout by default) for easy correlation with Console/OTLP.
+
+    No-op unless ``AGENTIC_RL_LOG_TRACE_ID`` is truthy (default off).
 
     ``role`` should be a short label such as ``processor``, ``execute_tool:get_weather``, or ``llm``.
     """

@@ -9,7 +9,6 @@
 #   Build and optionally install DashScope SDK for Agentic RL development
 #   Default behavior: Build wheel only, no installation
 #   Set INSTALL_LOCAL=1 to install local build
-#   Set DEBUG_AGENTIC_RL=True for debugging mode
 #   Automatically detects the latest built wheel file
 #***************************************************************#
 

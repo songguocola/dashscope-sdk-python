@@ -22,12 +22,13 @@ from dashscope.finetune.customize_types import (
 from dashscope.finetune.finetunes import FineTunes
 
 from dashscope.finetune.reinforcement.common.errors import (
-   OSSUploadError, RegistrationError, ValidationError, IOErrorWithCode, RuntimeErrorWithCode, ValueErrorWithCode,
+   OSSUploadError, RegistrationError, ValidationError, IOErrorWithCode, RuntimeErrorWithCode, ValueErrorWithCode, DatasetsError
 )
 from dashscope.finetune.reinforcement import logger
 from dashscope.finetune.reinforcement import DASHSCOPE_HTTP_BASE_URL
 from dashscope.finetune.reinforcement import set_api_key, get_filepath_classname, generate_random_id, get_func_type_id, deep_remove_none
-from dashscope.finetune.reinforcement import FunctionType, FileSpec, TrainingType, AgenticRLFunctionComponent, RolloutFunctionComponent, RewardFunctionComponent, Datasets
+from dashscope.finetune.reinforcement import FunctionType, DatasetsType, FileSpec, TrainingType, DataSourceType
+from dashscope.finetune.reinforcement import AgenticRLFunctionComponent, RolloutFunctionComponent, RewardFunctionComponent, Datasets, Dataset, TrainingDataset, ValidationDataset
 from dashscope.finetune.reinforcement import AgenticRLTuning, TuningModel
 from dashscope.finetune.reinforcement import RewardInput, RolloutInput, GroupRewardInput
 
@@ -56,35 +57,57 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
         workspace_dir = cfg.get("workspace_dir", "./")
 
         # classpaths & runtimes:
-        self.tuning.fcs = []
+        self.tuning.functions = []
         functions = cfg.get("functions", [])
         functions = [functions] if not isinstance(functions, List) else functions
         for f in functions:
             type = f.get("type", None)
-            names = f.get("names", None)
-            weights = f.get("weights", None)
-            reward_metric_weights = f.get("reward_metric_weights", None)
-            classpaths = f.get("classpaths", None)
-            runtimes = f.get("runtimes", None)
+            name = f.get("name", None)
+            weight = f.get("weight", None)
+            timeout = f.get("timeout", None)
+            reward_metric_weight = f.get("reward_metric_weight", None)
+            runtime = f.get("runtime", None)
+            fcmodel = f.get("fcmodel", None)
+
             self.tuning.add_function_components(
                 type=FunctionType(type) if type is not None else None,
-                classpaths=classpaths,
-                runtimes=runtimes,
-                names=names,
-                weights=weights,
-                reward_metric_weights=reward_metric_weights,
+                classpaths=fcmodel.get("classpath", None) if fcmodel else None,
+                entity_ids=fcmodel.get("entity_id", None) if fcmodel else None,
+                runtimes=runtime,
+                names=name,
+                weights=weight,
+                timeouts=timeout,
+                reward_metric_weights=reward_metric_weight,
                 workspace_dir=workspace_dir)
 
         ########################################################################################## Datasets
         # Sync dataset IDs to Datasets model
-        if "training_files" in cfg:
-            for path in cfg["training_files"]:
-                component = FileSpec(path=path)
-                self.tuning.datasets.training_files.append(component)
-        if "validation_files" in cfg:
-            for path in cfg["validation_files"]:
-                component = FileSpec(path=path)
-                self.tuning.datasets.validation_files.append(component)
+        # if "training_files" in cfg:
+        #     for path in cfg["training_files"]:
+        #         component = FileSpec(path=path)
+        #         self.tuning.datasets.training_files.append(component)
+        # if "validation_files" in cfg:
+        #     for path in cfg["validation_files"]:
+        #         component = FileSpec(path=path)
+        #         self.tuning.datasets.validation_files.append(component)
+        if "datasets" in cfg:
+            for ds in cfg["datasets"]:
+                type = ds.get("type", None)
+                data_source_type = ds.get("data_source_type", None)
+                file_name = ds.get("file_name", None)
+                file_id = ds.get("file_id", None)
+                download_url = ds.get("download_url", None)
+                mount_storage = ds.get("mount_storage", None)
+
+                dataset = Dataset(
+                    type=DatasetsType(type) if type else DatasetsType.TRAINING,
+                    data_source_type=DataSourceType(data_source_type) if data_source_type else DataSourceType.FILE_ID,
+                    file_name=file_name if data_source_type == DataSourceType.FILE_ID else None,
+                    file_id=file_id if data_source_type == DataSourceType.FILE_ID else None,
+                    download_url=download_url if data_source_type == DataSourceType.DOWNLOAD_URL else None,
+                    mount_storage=mount_storage if data_source_type == DataSourceType.OSS_MOUNT else None
+                )
+                self.tuning.datasets.append(dataset)
 
         ########################################################################################## FoundationModel
         if "model" in cfg:
@@ -95,11 +118,18 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
             # Support both string and enum types
             self.tuning.training.type = cfg["mode"] if isinstance(cfg["mode"], TrainingType) else TrainingType(
                 cfg["mode"])
-        if "hyper_parameters" in cfg:
-            # Ensure hyperparameters are in Dict[str, str] format
-            self.tuning.training.hyperparameters = {
-                str(k): str(v) for k, v in cfg["hyper_parameters"].items()
-            }
+
+        if "training" in cfg:
+            if "hyper_parameters" in cfg["training"]:
+                # Ensure hyperparameters are in Dict[str, str] format
+                self.tuning.training.hyperparameters = {
+                    str(k): str(v) for k, v in cfg["training"]["hyper_parameters"].items()
+                }
+            if "resources" in cfg["training"]:
+                # Ensure resources are in Dict[str, str] format
+                self.tuning.training.resources = {
+                    str(k): str(v) for k, v in cfg["training"]["resources"].items()
+                }
 
         return self.tuning
 
@@ -138,7 +168,7 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
     ) -> tuple[List[str], List[str], List[str], List[str]]:
         """Register function components and return entity/instance IDs."""
         if functions:
-            self.tuning.fcs = functions
+            self.tuning.functions = functions
 
         try:
             (rollout_entity_ids,
@@ -163,31 +193,31 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
 
     async def upload_datasets(
             self,
-            training_files: Optional[List[str]] = None,
-            validation_files: Optional[List[str]] = None,
+            datasets: Optional[List[Dataset]] = None,
+            training_files: Optional[Union[List[str], str]] = None,
+            validation_files: Optional[Union[List[str], str]] = None,
     ) -> tuple[List[str], List[str]]:
-        """Upload datasets and return platform file IDs."""
-        if training_files:
-            self.tuning.datasets = Datasets(
-                name='',
-                training_files=[FileSpec(path=f, descriptions='') for f in training_files],
-                validation_files=[FileSpec(path=f, descriptions='') for f in
-                                  validation_files] if validation_files else None)
+        if datasets:
+            self.tuning.datasets = datasets
 
         try:
-            uploaded_training_ids, uploaded_validation_ids = await self.tuning.register_datasets()
-            logger.info("Datasets registration completed")
+            uploaded_training_ids, uploaded_validation_ids = await self.tuning.upload_datasets(
+                training_files=training_files,
+                validation_files=validation_files,
+            )
+            logger.info("Datasets uploaded")
         except Exception as e:
-            logger.error("Dataset registration failed", exc_info=True)
-            raise OSSUploadError("Dataset upload error", error_code=3300) from e
+            logger.error("Datasets upload failed", exc_info=True)
+            raise DatasetsError("Datasets upload error", error_code=3300) from e
 
         return uploaded_training_ids, uploaded_validation_ids
 
     def submit_job(
             self,
             model: Optional[str] = None,
-            training_file_ids: Optional[Union[List[str], str]] = None,
-            validation_file_ids: Optional[Union[List[str], str]] = None,
+            # training_file_ids: Optional[Union[List[str], str]] = None,
+            # validation_file_ids: Optional[Union[List[str], str]] = None,
+            datasets: Optional[List[Dataset]] = None,
             functions: Optional[Union[List[Union[
                 RolloutFunctionComponent, RewardFunctionComponent, AgenticRLFunctionComponent]],
                 RolloutFunctionComponent, RewardFunctionComponent, AgenticRLFunctionComponent]] = None,
@@ -202,9 +232,9 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
         resolved_job_name = job_name or self.tuning.name
         job_name_with_suffix = f"{resolved_job_name}-{generate_random_id()[:8]}"
 
+        # rollouts/rewards
         if functions:
-            self.tuning.fcs = functions
-
+            self.tuning.functions = functions
         try:
             rollouts = self.tuning.combine_ids_runtimes(type=FunctionType.ROLLOUT)
             rewards = self.tuning.combine_ids_runtimes(type=FunctionType.REWARD)
@@ -214,20 +244,33 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
         except Exception as e:
             logger.error(f"Tuning combine ids and runtimes failed: {str(e)}", exc_info=True)
             raise
-
+        # names of functions
         if not self.tuning.check_function_names():
             raise ValueErrorWithCode(
                 "Duplicate function names detected. All function names must be unique.",
                 error_code=3401
             )
 
+        # datasets
+        datasets = datasets or self.tuning.datasets
+        if not datasets:
+            raise ValueError("No datasets specified")
+        training_datasets = [ds for ds in datasets if ds.type == DatasetsType.TRAINING]
+        validation_datasets = [ds for ds in datasets if ds.type == DatasetsType.VALIDATION]
+
+        # resources
+        resource_config = kwargs.get("resource_config")
+
         request = {
             "model": model or self.tuning.model.name,
-            "training_file_ids": training_file_ids or self.tuning.datasets.uploaded_training_ids,
-            "validation_file_ids": validation_file_ids or self.tuning.datasets.uploaded_validation_ids,
+            # "training_file_ids": training_file_ids or self.tuning.datasets.uploaded_training_ids,
+            # "validation_file_ids": validation_file_ids or self.tuning.datasets.uploaded_validation_ids,
+            "training_datasets": [ds.model_dump() for ds in training_datasets],
+            "validation_datasets": [ds.model_dump() for ds in validation_datasets],
             "rollout": rollouts[0] if rollouts else None,
             "rewards": rewards,
             "hyper_parameters": hyper_parameters or self.tuning.training.hyperparameters,
+            "resource_config": resource_config or self.tuning.training.resources,
             "training_type": str(self.tuning.training.type),
             "job_name": job_name_with_suffix,
         }
@@ -252,8 +295,11 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
             model: Optional[str] = None,
 
             # Datasets parameters
-            training_files: Optional[Union[List[str], str]] = None,
-            validation_files: Optional[Union[List[str], str]] = None,
+            # training_files: Optional[Union[List[str], str]] = None,
+            # validation_files: Optional[Union[List[str], str]] = None,
+            #datasets: Optional[List[Dataset]] = None,
+            training_datasets: Optional[List[TrainingDataset]] = None,
+            validation_datasets: Optional[List[ValidationDataset]] = None,
 
             # Path-driven parameters (auto-register & upload)
             functions: Optional[Union[List[Union[
@@ -263,7 +309,7 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
             # Common parameters
             hyper_parameters: Optional[Dict[str, str]] = None,
             job_name: Optional[str] = None,
-            workspace_dir: str = "./",
+            # workspace_dir: str = "./",
             **kwargs,
     ) -> FineTune:
         """
@@ -276,13 +322,18 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
                 lazy_load=True,
             )
 
+            # await self.upload_datasets(
+            #     training_files=training_files,
+            #     validation_files=validation_files,
+            # )
+            datasets = list(training_datasets or []) + list(validation_datasets or [])
             await self.upload_datasets(
-                training_files=training_files,
-                validation_files=validation_files,
+                datasets=datasets,
             )
 
             return self.submit_job(
                 model=model,
+                datasets=datasets,
                 hyper_parameters=hyper_parameters,
                 job_name=job_name,
                 **kwargs
@@ -364,26 +415,6 @@ class AgenticRL(AgenticRLTuning, CreateMixin):
             workspace=workspace,
             **kwargs,
         )
-
-    @classmethod
-    def stream_events(
-            cls,
-            job_id: str,
-            api_key: str = None,
-            workspace: str = None,
-            **kwargs,
-    ) -> Iterator[FineTuneEvent]:
-        """Stream fine-tune job events."""
-        kwargs['base_address'] = DASHSCOPE_HTTP_BASE_URL
-
-        responses = FineTunes.stream_events(
-            job_id,
-            api_key=api_key,
-            workspace=workspace,
-            **kwargs,
-        )
-        for rsp in responses:
-            yield FineTuneEvent(**rsp)
 
     @classmethod
     def logs(

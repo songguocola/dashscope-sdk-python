@@ -6,15 +6,27 @@ Two complementary APIs:
 - ``trace_tool``: Monkey-patch LangChain BaseTool objects for automatic tracing.
 
 They are orthogonal and can be used together (though typically only one is needed).
+
+Phase-A diagnostics (nested ``execute_tool`` investigation): set environment variable
+``AGENTIC_RL_DEBUG_TRACE_TOOL=true`` to log ``wrap_ainvoke`` / ``wrap_invoke`` lines;
+``AGENTIC_RL_DEBUG_TRACE_TOOL_FALLBACK=true`` adds or selects ``fallback_span`` lines.
+``AGENTIC_RL_DEBUG_SPAN_BINDING`` uses the same truthy values as other observability env flags
+(``true`` / ``1`` / ``yes`` / ``y`` / ``on``).
+
+Deduplication (default **on**): LangChain often calls ``ainvoke`` then ``invoke`` for sync tools,
+which would create two ``execute_tool`` spans. The SDK suppresses the inner duplicate by default.
+Set ``AGENTIC_RL_TRACE_TOOL_NO_DEDUP=true`` only to disable this (e.g. debugging).
 """
 
 from __future__ import annotations
 
+import contextvars
 import functools
 import inspect
 import json
 import logging
 import os
+import threading
 from contextlib import ExitStack, nullcontext
 from typing import Any, Callable, Dict, Optional, Set, TypeVar, Union
 
@@ -47,11 +59,171 @@ F = TypeVar("F", bound=Callable[..., Any])
 # Module-level logger for trace_tool warnings
 _logger = logging.getLogger(__name__)
 
-_DEBUG_BINDING = os.environ.get("AGENTIC_RL_DEBUG_SPAN_BINDING", "").strip().lower() in (
-    "1",
-    "true",
-    "yes",
+# Truthy env values for observability toggles (aligned with ``messages._env_truthy``).
+_ENV_TRUTHY_VALUES = ("true", "1", "yes", "y", "on")
+
+_DEBUG_BINDING = os.environ.get("AGENTIC_RL_DEBUG_SPAN_BINDING", "").strip().lower() in _ENV_TRUTHY_VALUES
+
+# Phase-A diagnostics: nested ``execute_tool`` spans (ainvoke vs invoke vs fallback).
+# Set ``AGENTIC_RL_DEBUG_TRACE_TOOL=true`` for wrap_ainvoke / wrap_invoke lines.
+# Set ``AGENTIC_RL_DEBUG_TRACE_TOOL_FALLBACK=true`` for fallback_span only (or together with above).
+def _env_flag(name: str) -> bool:
+    """Truth-y values aligned with ``messages._env_truthy`` / other observability env parsers."""
+    return os.environ.get(name, "").strip().lower() in _ENV_TRUTHY_VALUES
+
+
+_DEBUG_TRACE_TOOL_WRAP = _env_flag("AGENTIC_RL_DEBUG_TRACE_TOOL")
+_DEBUG_TRACE_TOOL_FALLBACK = _env_flag("AGENTIC_RL_DEBUG_TRACE_TOOL_FALLBACK") or _DEBUG_TRACE_TOOL_WRAP
+
+# Default: dedupe nested ainvoke→invoke double spans. Escape hatch for rare debugging only.
+_TRACE_TOOL_NO_DEDUP = _env_flag("AGENTIC_RL_TRACE_TOOL_NO_DEDUP")
+
+# Same-thread nesting (``invoke`` called synchronously under ``ainvoke`` without a thread hop).
+_TRACE_TOOL_CTX_DEPTH: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "agentic_rl_trace_tool_ctx_depth", default=0
 )
+
+# Cross-thread / LangGraph: while ``wrapped_ainvoke`` is awaiting ``orig_ainvoke``, refcount per OTel trace id
+# so ``wrapped_invoke`` in a worker thread can detect an outer async tool layer.
+_outer_async_tool_lock = threading.Lock()
+_outer_async_tool_depth: Dict[str, int] = {}
+
+_trace_tool_seq_lock = threading.Lock()
+_trace_tool_seq = 0
+
+
+def _next_trace_tool_seq() -> int:
+    global _trace_tool_seq
+    with _trace_tool_seq_lock:
+        _trace_tool_seq += 1
+        return _trace_tool_seq
+
+
+def _current_otel_trace_id_hex() -> str:
+    if otel_trace is None:
+        return "-"
+    try:
+        from opentelemetry.trace import format_trace_id
+
+        sp = otel_trace.get_current_span()
+        ctx = sp.get_span_context()
+        if ctx.is_valid:
+            return format_trace_id(ctx.trace_id)
+    except Exception:
+        pass
+    return "-"
+
+
+def _trace_hex_or_none() -> Optional[str]:
+    h = _current_otel_trace_id_hex()
+    return None if h in ("-", "") else h
+
+
+def _incr_outer_async_layer(trace_key: str) -> None:
+    with _outer_async_tool_lock:
+        _outer_async_tool_depth[trace_key] = _outer_async_tool_depth.get(trace_key, 0) + 1
+
+
+def _decr_outer_async_layer(trace_key: str) -> None:
+    with _outer_async_tool_lock:
+        c = _outer_async_tool_depth.get(trace_key, 0) - 1
+        if c <= 0:
+            _outer_async_tool_depth.pop(trace_key, None)
+        else:
+            _outer_async_tool_depth[trace_key] = c
+
+
+def _outer_async_layer_depth(trace_key: str) -> int:
+    with _outer_async_tool_lock:
+        return _outer_async_tool_depth.get(trace_key, 0)
+
+
+def _otel_current_span_looks_like_execute_tool_outer() -> bool:
+    """True when OTel current span is likely our outer ``execute_tool`` (worker-thread heuristic).
+
+    Uses a name substring match (``execute_tool``). Exporter or SDK span naming changes, or
+    unrelated spans whose names contain the same substring, could false-positive; this is a
+    last-resort hint and is combined with other dedup signals in ``_should_skip_inner_tool_span``.
+    """
+    if otel_trace is None:
+        return False
+    try:
+        sp = otel_trace.get_current_span()
+        if sp is None:
+            return False
+        if not sp.is_recording():
+            return False
+        name = (getattr(sp, "name", None) or "").lower()
+        return "execute_tool" in name
+    except Exception:
+        return False
+
+
+def _should_skip_inner_tool_span(tool_name: str, config: Any) -> bool:
+    """Suppress duplicate ``execute_tool`` when LangChain already wrapped ``ainvoke`` → ``invoke``."""
+    if _TRACE_TOOL_NO_DEDUP:
+        return False
+    if _TRACE_TOOL_CTX_DEPTH.get() > 0:
+        return True
+    tk = _trace_hex_or_none()
+    if tk is not None and _outer_async_layer_depth(tk) > 0:
+        return True
+    if _otel_current_span_looks_like_execute_tool_outer():
+        return True
+    return False
+
+
+def _extract_rollout_id_from_config(config: Any) -> str:
+    """Best-effort ``rollout_id`` from LangChain ``RunnableConfig`` or dict-like config."""
+    if config is None:
+        return "-"
+    try:
+        if isinstance(config, dict):
+            md = config.get("metadata") or {}
+            if isinstance(md, dict) and md.get("rollout_id") is not None:
+                return str(md["rollout_id"])
+            cfg = config.get("configurable")
+            if isinstance(cfg, dict):
+                meta = cfg.get("metadata")
+                if isinstance(meta, dict) and meta.get("rollout_id") is not None:
+                    return str(meta["rollout_id"])
+        else:
+            md = getattr(config, "metadata", None) or {}
+            if isinstance(md, dict) and md.get("rollout_id") is not None:
+                return str(md["rollout_id"])
+            cfg = getattr(config, "configurable", None)
+            if isinstance(cfg, dict):
+                meta = cfg.get("metadata")
+                if isinstance(meta, dict) and meta.get("rollout_id") is not None:
+                    return str(meta["rollout_id"])
+    except Exception:
+        pass
+    return "-"
+
+
+def _emit_trace_tool_debug_line(
+    phase: str,
+    tool_name: str,
+    config: Any,
+    *,
+    extra: Optional[str] = None,
+) -> None:
+    """Single-line log for FC grep: ``[AGENTIC_RL_TRACE_TOOL]``."""
+    seq = _next_trace_tool_seq()
+    tid = threading.get_ident()
+    trace_id = _current_otel_trace_id_hex()
+    rid = _extract_rollout_id_from_config(config)
+    suffix = f" {extra}" if extra else ""
+    _logger.info(
+        "[AGENTIC_RL_TRACE_TOOL] phase=%s tool=%s seq=%s tid=%s trace_id=%s rollout_id=%s%s",
+        phase,
+        tool_name,
+        seq,
+        tid,
+        trace_id,
+        rid,
+        suffix,
+    )
 
 
 def _otel_span_id_hex(span: Any) -> Optional[str]:
@@ -237,6 +409,13 @@ class _ToolSpanScope:
         self._stack.enter_context(cm_bind)
         # 2) If handler degraded to no-span, start a fallback span.
         if self.invocation_span is None:
+            if _DEBUG_TRACE_TOOL_FALLBACK:
+                _emit_trace_tool_debug_line(
+                    "fallback_span",
+                    self._tool_name,
+                    None,
+                    extra="invocation_span=null",
+                )
             fb_cm = _maybe_start_fallback_tool_span(self._tool_name)
             try:
                 self.fallback_span = self._stack.enter_context(fb_cm)
@@ -604,11 +783,24 @@ def _run_tool_with_span_sync(
     **kwargs: Any,
 ) -> Any:
     """Execute a tool synchronously within an execute_tool GenAI span."""
+    tool_name = getattr(tool, "name", str(tool))
+    if _DEBUG_TRACE_TOOL_WRAP:
+        _emit_trace_tool_debug_line("wrap_invoke", tool_name, config)
+
     if not is_tracing_enabled() or not GENAI_AVAILABLE:
         return orig_fn(input, config=config, **kwargs)
 
+    if _should_skip_inner_tool_span(tool_name, config):
+        if _DEBUG_TRACE_TOOL_WRAP:
+            _emit_trace_tool_debug_line(
+                "wrap_invoke_skipped",
+                tool_name,
+                config,
+                extra="dedup",
+            )
+        return orig_fn(input, config=config, **kwargs)
+
     h = get_handler()
-    tool_name = getattr(tool, "name", str(tool))
     arguments = _extract_tool_arguments(input)
 
     inv = ExecuteToolInvocation(
@@ -639,30 +831,46 @@ async def _run_tool_with_span_async(
     **kwargs: Any,
 ) -> Any:
     """Execute a tool asynchronously within an execute_tool GenAI span."""
+    tool_name = getattr(tool, "name", str(tool))
+    if _DEBUG_TRACE_TOOL_WRAP:
+        _emit_trace_tool_debug_line("wrap_ainvoke", tool_name, config)
+
     if not is_tracing_enabled() or not GENAI_AVAILABLE:
         return await orig_fn(input, config=config, **kwargs)  # type: ignore[misc]
 
-    h = get_handler()
-    tool_name = getattr(tool, "name", str(tool))
-    arguments = _extract_tool_arguments(input)
+    trace_key = _trace_hex_or_none()
+    ctx_token: Optional[contextvars.Token[int]] = None
+    if not _TRACE_TOOL_NO_DEDUP:
+        if trace_key is not None:
+            _incr_outer_async_layer(trace_key)
+        ctx_token = _TRACE_TOOL_CTX_DEPTH.set(_TRACE_TOOL_CTX_DEPTH.get() + 1)
+    try:
+        h = get_handler()
+        arguments = _extract_tool_arguments(input)
 
-    inv = ExecuteToolInvocation(
-        tool_name=tool_name,
-        tool_call_arguments=arguments,
-    )
-    if provider:
-        inv.provider = provider
+        inv = ExecuteToolInvocation(
+            tool_name=tool_name,
+            tool_call_arguments=arguments,
+        )
+        if provider:
+            inv.provider = provider
 
-    with h.execute_tool(inv) as invocation:
-        with _ToolSpanScope(invocation, tool_name) as scope:
-            _debug_binding_point("trace_tool_async:entered", invocation)
-            _debug_binding_point("trace_tool_async:after_use_span", invocation)
-            log_trace_id(f"execute_tool:{tool_name}")
-            result = await orig_fn(input, config=config, **kwargs)  # type: ignore[misc]
-            invocation.tool_call_result = _json_serializable(result)
-            if hasattr(invocation, "span") and invocation.span is not None:
-                invocation.span.set_status(Status(StatusCode.OK))
-            return result
+        with h.execute_tool(inv) as invocation:
+            with _ToolSpanScope(invocation, tool_name) as scope:
+                _debug_binding_point("trace_tool_async:entered", invocation)
+                _debug_binding_point("trace_tool_async:after_use_span", invocation)
+                log_trace_id(f"execute_tool:{tool_name}")
+                result = await orig_fn(input, config=config, **kwargs)  # type: ignore[misc]
+                invocation.tool_call_result = _json_serializable(result)
+                if hasattr(invocation, "span") and invocation.span is not None:
+                    invocation.span.set_status(Status(StatusCode.OK))
+                return result
+    finally:
+        if not _TRACE_TOOL_NO_DEDUP:
+            if ctx_token is not None:
+                _TRACE_TOOL_CTX_DEPTH.reset(ctx_token)
+            if trace_key is not None:
+                _decr_outer_async_layer(trace_key)
 
 
 def _extract_tool_arguments(input: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
