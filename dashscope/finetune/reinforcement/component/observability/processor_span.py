@@ -30,7 +30,9 @@ from functools import wraps
 from typing import Any, Callable, Dict, Optional, TypeVar, cast
 
 from dashscope.finetune.reinforcement.common.log import logger
-from dashscope.finetune.reinforcement.component.data.base_data_model import BaseDataModel
+from dashscope.finetune.reinforcement.component.data.base_data_model import (
+    BaseDataModel,
+)
 from dashscope.finetune.reinforcement.component.observability.tracing import (
     _REWARD_SPAN_PREFIX,
     _ROLLOUT_SPAN_PREFIX,
@@ -72,8 +74,14 @@ def trace_processor_span(
     """
 
     def decorator(fn: F) -> F:
-        default_kind = SpanKind.INTERNAL if _OTEL_SPAN_API and SpanKind is not None else None
-        kind_arg = otel_span_kind if otel_span_kind is not None else default_kind
+        default_kind = (
+            SpanKind.INTERNAL
+            if _OTEL_SPAN_API and SpanKind is not None
+            else None
+        )
+        kind_arg = (
+            otel_span_kind if otel_span_kind is not None else default_kind
+        )
 
         def _run_with_span(
             self: Any,
@@ -93,14 +101,20 @@ def trace_processor_span(
                 return fn(self, input_data, *args, **kwargs)
 
             try:
-                func_type = resolve_processor_func_type_for_span(input_data, logical_kind)
+                func_type = resolve_processor_func_type_for_span(
+                    input_data, logical_kind
+                )
             except ValueError as e:
                 logger.warning("trace_processor_span: %s — skipping span", e)
                 return fn(self, input_data, *args, **kwargs)
 
             ensure_agentic_rl_baggage_span_processor()
             # Span name: "invoke_rollout <ClassName>" or "invoke_reward <ClassName>"
-            prefix = _ROLLOUT_SPAN_PREFIX if func_type.value.lower() == "rollout" else _REWARD_SPAN_PREFIX
+            prefix = (
+                _ROLLOUT_SPAN_PREFIX
+                if func_type.value.lower() == "rollout"
+                else _REWARD_SPAN_PREFIX
+            )
             span_name = f"{prefix} {type(self).__name__}"
             span_kw: Dict[str, Any] = {}
             if kind_arg is not None:
@@ -139,14 +153,20 @@ def trace_processor_span(
                 return await fn(self, input_data, *args, **kwargs)
 
             try:
-                func_type = resolve_processor_func_type_for_span(input_data, logical_kind)
+                func_type = resolve_processor_func_type_for_span(
+                    input_data, logical_kind
+                )
             except ValueError as e:
                 logger.warning("trace_processor_span: %s — skipping span", e)
                 return await fn(self, input_data, *args, **kwargs)
 
             ensure_agentic_rl_baggage_span_processor()
             # Span name: "invoke_rollout <ClassName>" or "invoke_reward <ClassName>"
-            prefix = _ROLLOUT_SPAN_PREFIX if func_type.value.lower() == "rollout" else _REWARD_SPAN_PREFIX
+            prefix = (
+                _ROLLOUT_SPAN_PREFIX
+                if func_type.value.lower() == "rollout"
+                else _REWARD_SPAN_PREFIX
+            )
             span_name = f"{prefix} {type(self).__name__}"
             span_kw: Dict[str, Any] = {}
             if kind_arg is not None:
@@ -196,8 +216,12 @@ def observe_processor(
 
     Replaces the explicit ``@trace_processor_span(logical_kind=...)`` style.
     """
-    from dashscope.finetune.reinforcement.component.processor.abstract_reward_processor import AbstractRewardProcessor
-    from dashscope.finetune.reinforcement.component.processor.abstract_rollout_processor import AbstractRolloutProcessor
+    from dashscope.finetune.reinforcement.component.processor.abstract_reward_processor import (
+        AbstractRewardProcessor,
+    )
+    from dashscope.finetune.reinforcement.component.processor.abstract_rollout_processor import (
+        AbstractRolloutProcessor,
+    )
 
     _KIND_MAP = {
         AbstractRolloutProcessor: "Rollout",
@@ -229,18 +253,34 @@ def observe_processor(
             return _cached[kind]
 
         if inspect.iscoroutinefunction(fn):
+
             @wraps(fn)
-            async def auto_wrapper(self: Any, input_data: Any, *args: Any, **kwargs: Any) -> Any:
-                has_func_type = getattr(input_data, "func_type", None) is not None
-                kind = "reward_or_rollout" if has_func_type else _infer_kind(self)
-                return await _get_wrapped(kind)(self, input_data, *args, **kwargs)
+            async def auto_wrapper(
+                self: Any, input_data: Any, *args: Any, **kwargs: Any
+            ) -> Any:
+                has_func_type = (
+                    getattr(input_data, "func_type", None) is not None
+                )
+                kind = (
+                    "reward_or_rollout" if has_func_type else _infer_kind(self)
+                )
+                return await _get_wrapped(kind)(
+                    self, input_data, *args, **kwargs
+                )
+
             return auto_wrapper  # type: ignore[return-value]
         else:
+
             @wraps(fn)
             def auto_wrapper(self: Any, input_data: Any, *args: Any, **kwargs: Any) -> Any:  # type: ignore[misc]
-                has_func_type = getattr(input_data, "func_type", None) is not None
-                kind = "reward_or_rollout" if has_func_type else _infer_kind(self)
+                has_func_type = (
+                    getattr(input_data, "func_type", None) is not None
+                )
+                kind = (
+                    "reward_or_rollout" if has_func_type else _infer_kind(self)
+                )
                 return _get_wrapped(kind)(self, input_data, *args, **kwargs)
+
             return auto_wrapper  # type: ignore[return-value]
 
     if _fn is not None and callable(_fn):

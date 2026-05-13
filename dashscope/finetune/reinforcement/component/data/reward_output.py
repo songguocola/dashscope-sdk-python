@@ -7,8 +7,9 @@ Data model definitions for Reward processor output results.
 from pydantic import BaseModel, Field
 from typing import Any, Dict, Optional
 
-from dashscope.finetune.reinforcement.component.data.base_data_model import \
-    TaskStatus
+from dashscope.finetune.reinforcement.component.data.base_data_model import (
+    TaskStatus,
+)
 
 
 # ============================================================================ #
@@ -39,6 +40,7 @@ class RewardOutput(BaseModel):
     """
     Reward processor output result model.
     """
+
     reward: Reward = Field(
         ...,
         description="The computed reward for the given rollout.",

@@ -8,8 +8,9 @@ Corresponds to the RewardInput structure in protocol.py.
 from pydantic import Field
 from typing import Any, Dict, Optional
 
-from dashscope.finetune.reinforcement.common.model_types import \
-    FunctionType as FuncType
+from dashscope.finetune.reinforcement.common.model_types import (
+    FunctionType as FuncType,
+)
 from dashscope.finetune.reinforcement.component.data.base_data_model import (
     BaseDataModel,
     AgentOutput,
@@ -28,6 +29,7 @@ class RewardInput(BaseDataModel):
 
     Corresponds to the RewardInput structure in protocol.py.
     """
+
     func_type: FuncType = FuncType.REWARD
 
     ground_truth: Optional[Any] = Field(

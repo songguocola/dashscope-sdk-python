@@ -8,8 +8,9 @@ Corresponds to the RolloutInput structure in protocol.py.
 from pydantic import Field
 from typing import Any, Dict, List, Optional
 
-from dashscope.finetune.reinforcement.common.model_types import \
-    FunctionType as FuncType
+from dashscope.finetune.reinforcement.common.model_types import (
+    FunctionType as FuncType,
+)
 from dashscope.finetune.reinforcement.component.data.base_data_model import (
     BaseDataModel,
     ModelResource,
@@ -54,7 +55,7 @@ class RolloutInput(BaseDataModel):
         description="Extra information from the dataset.",
     )
 
-    # Inference hyperparameters
+    # Inference hyper_parameters
     sampling_params: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Sampling parameters for the agent.",

@@ -40,7 +40,12 @@ _ENV_DEBUG_LLM_TOOL_CALLS = "AGENTIC_RL_DEBUG_LLM_TOOL_CALLS"
 
 def _debug_llm_tool_calls() -> bool:
     return os.environ.get(_ENV_DEBUG_LLM_TOOL_CALLS, "").strip().lower() in (
-    "true", "1", "yes", "y", "on")
+        "true",
+        "1",
+        "yes",
+        "y",
+        "on",
+    )
 
 
 def _env_truthy(name: str, *, default: bool = False) -> bool:
@@ -147,10 +152,14 @@ def _shape_args_for_debug(arguments: Any) -> Dict[str, Any]:
     if isinstance(arguments, str):
         return {"args_type": "str", "args_str_len": len(arguments)}
     if isinstance(arguments, (Dict, list)):
-        return {"args_type": type(arguments).__name__,
-                "args_json_len": len(json.dumps(arguments, default=str))}
-    return {"args_type": type(arguments).__name__,
-            "args_repr_len": len(repr(arguments))}
+        return {
+            "args_type": type(arguments).__name__,
+            "args_json_len": len(json.dumps(arguments, default=str)),
+        }
+    return {
+        "args_type": type(arguments).__name__,
+        "args_repr_len": len(repr(arguments)),
+    }
 
 
 def _first_tool_call_keys(tc: Any) -> Any:
@@ -201,7 +210,8 @@ def tool_calls_to_parts(tool_calls: Any) -> List[Any]:
         else:
             branch = "top_level_lc"
             name = getattr(tc, "name", "") or (
-                tc.get("name") if isinstance(tc, Dict) else "")
+                tc.get("name") if isinstance(tc, Dict) else ""
+            )
             # LangChain ``ToolCall`` / LC-like dicts: payload lives in top-level ``args``, not
             # OpenAI's nested ``function.arguments`` string.
             if isinstance(tc, Dict):
@@ -211,8 +221,11 @@ def tool_calls_to_parts(tool_calls: Any) -> List[Any]:
                 lc_args = getattr(tc, "args", None)
                 if lc_args is not None:
                     args = lc_args
-        tid = getattr(tc, "id", None) if not isinstance(tc, Dict) else tc.get(
-            "id")
+        tid = (
+            getattr(tc, "id", None)
+            if not isinstance(tc, Dict)
+            else tc.get("id")
+        )
         args_str = _sanitize_tool_call_arguments(args)
         if _debug_llm_tool_calls():
             try:
@@ -226,11 +239,14 @@ def tool_calls_to_parts(tool_calls: Any) -> List[Any]:
                     nested_fn_diag = {
                         "fn_arguments_absent": raw_a == "__sentinel__",
                         "fn_arguments_is_none": raw_a is None,
-                        "fn_arguments_type": None
-                        if raw_a in ("__sentinel__", None)
-                        else type(raw_a).__name__,
-                        "fn_arguments_str_len": len(raw_a) if isinstance(raw_a,
-                                                                         str) else None,
+                        "fn_arguments_type": (
+                            None
+                            if raw_a in ("__sentinel__", None)
+                            else type(raw_a).__name__
+                        ),
+                        "fn_arguments_str_len": (
+                            len(raw_a) if isinstance(raw_a, str) else None
+                        ),
                     }
                 logger.info(
                     "[agentic_rl_debug_llm_tool_calls] tool_calls_to_parts:map "
@@ -267,8 +283,9 @@ def _extract_tool_calls_from_message_obj(m: Any) -> Any:
     return None
 
 
-def _should_include_tool_calls_in_input(raw_role: Any,
-                                        tool_calls: Any) -> bool:
+def _should_include_tool_calls_in_input(
+    raw_role: Any, tool_calls: Any
+) -> bool:
     if not tool_calls:
         return False
     if raw_role == "assistant":
@@ -345,8 +362,13 @@ def openai_chat_messages_to_input_messages(messages: Any) -> List[Any]:
         elif isinstance(content, str):
             parts.append(Text(content=content))
         elif isinstance(content, list):
-            parts.append(Text(
-                content=json.dumps(content, ensure_ascii=False, default=str)))
+            parts.append(
+                Text(
+                    content=json.dumps(
+                        content, ensure_ascii=False, default=str
+                    )
+                )
+            )
         else:
             parts.append(Text(content=str(content)))
         if include_tc:
@@ -410,8 +432,11 @@ def openai_completion_to_output_messages(completion: Any) -> List[Any]:
         if isinstance(msg, Dict):
             role = msg.get("role") or "assistant"
         else:
-            role = getattr(msg, "role",
-                           "assistant") if msg is not None else "assistant"
+            role = (
+                getattr(msg, "role", "assistant")
+                if msg is not None
+                else "assistant"
+            )
         parts: List[Any] = []
         if msg is not None:
             if isinstance(msg, Dict):
@@ -420,8 +445,13 @@ def openai_completion_to_output_messages(completion: Any) -> List[Any]:
                 content = getattr(msg, "content", None)
             if content:
                 parts.append(
-                    Text(content=content if isinstance(content, str) else str(
-                        content))
+                    Text(
+                        content=(
+                            content
+                            if isinstance(content, str)
+                            else str(content)
+                        )
+                    )
                 )
             if isinstance(msg, Dict):
                 tool_calls = msg.get("tool_calls")
@@ -432,7 +462,8 @@ def openai_completion_to_output_messages(completion: Any) -> List[Any]:
         if not parts:
             parts.append(Text(content=""))
         result.append(
-            OutputMessage(role=role, parts=parts, finish_reason=finish))
+            OutputMessage(role=role, parts=parts, finish_reason=finish)
+        )
     return result
 
 
@@ -462,24 +493,30 @@ def dashscope_response_to_output_messages(response: Any) -> List[Any]:
                     tool_calls = getattr(msg, "tool_calls", None)
                 if content:
                     parts.append(
-                        Text(content=content if isinstance(content,
-                                                           str) else str(
-                            content))
+                        Text(
+                            content=(
+                                content
+                                if isinstance(content, str)
+                                else str(content)
+                            )
+                        )
                     )
                 if tool_calls:
                     parts.extend(tool_calls_to_parts(tool_calls))
             if not parts:
                 parts.append(Text(content=""))
             result.append(
-                OutputMessage(role=role, parts=parts, finish_reason=finish))
+                OutputMessage(role=role, parts=parts, finish_reason=finish)
+            )
         return result
     text = getattr(output, "text", None)
     if text:
         return [
             OutputMessage(
                 role="assistant",
-                parts=[Text(
-                    content=text if isinstance(text, str) else str(text))],
+                parts=[
+                    Text(content=text if isinstance(text, str) else str(text))
+                ],
                 finish_reason="stop",
             )
         ]

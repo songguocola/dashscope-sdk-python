@@ -45,7 +45,7 @@ class DatasetsType(str, Enum):
 
 
 class TrainingType(str, Enum):
-    TRAINING_TYPE = 'reinforcement'
+    TRAINING_TYPE = "reinforcement"
 
     def __str__(self):
         return self.value
@@ -66,15 +66,15 @@ class RLType(str, Enum):
 
 
 class FileSpec(BaseModel):
-    path: str = ''
-    descriptions: Optional[str] = ''
+    path: str = ""
+    descriptions: Optional[str] = ""
 
 
 class Status(BaseModel):
     task: StatusType = StatusType.SUCCEEDED
-    name: str = ''
+    name: str = ""
     code: int = 200
-    message: str = ''
+    message: str = ""
 
     @property
     def success(self) -> bool:
@@ -82,10 +82,10 @@ class Status(BaseModel):
 
 
 class RequestFC(BaseModel):
-    name: str = ''
-    unique_key: str = ''
-    func: str = ''
-    code_url: str = ''
+    name: str = ""
+    unique_key: str = ""
+    func: str = ""
+    code_url: str = ""
 
 
 class ResponseFC(BaseModel):
@@ -94,15 +94,15 @@ class ResponseFC(BaseModel):
 
 
 class RequestTuning(BaseModel):
-    model: str = ''  # Foundation model
+    model: str = ""  # Foundation model
     training_file_ids: List[str] = []
     validation_file_ids: Optional[List[str]] = []
-    rolloutId: str = ''
+    rolloutId: str = ""
     rewardIds: List[str] = []
     hyper_parameters: Optional[Dict[str, str]] = {}
     training_type: str = TrainingType.TRAINING_TYPE
-    job_name: Optional[str] = ''
-    model_name: Optional[str] = ''  # Post-tests model name
+    job_name: Optional[str] = ""
+    model_name: Optional[str] = ""  # Post-tests model name
 
 
 class ResponseTuning(BaseModel):

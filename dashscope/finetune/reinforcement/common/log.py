@@ -1,8 +1,10 @@
 import logging
 import sys
 
-from dashscope.finetune.reinforcement.common.constants import LOGGER_NAME, \
-    LOG_LEVEL
+from dashscope.finetune.reinforcement.common.constants import (
+    LOGGER_NAME,
+    LOG_LEVEL,
+)
 
 
 def setup_logger():
@@ -13,7 +15,7 @@ def setup_logger():
         "INFO": logging.INFO,
         "WARNING": logging.WARNING,
         "ERROR": logging.ERROR,
-        "CRITICAL": logging.CRITICAL
+        "CRITICAL": logging.CRITICAL,
     }
     logger.setLevel(level_map.get(LOG_LEVEL, logging.INFO))
 

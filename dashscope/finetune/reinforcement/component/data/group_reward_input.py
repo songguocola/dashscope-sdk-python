@@ -8,8 +8,9 @@ Corresponds to the GroupRewardInput structure in protocol.py.
 from pydantic import Field
 from typing import Any, Dict, List, Optional
 
-from dashscope.finetune.reinforcement.common.model_types import \
-    FunctionType as FuncType
+from dashscope.finetune.reinforcement.common.model_types import (
+    FunctionType as FuncType,
+)
 from dashscope.finetune.reinforcement.component.data.base_data_model import (
     BaseDataModel,
     AgentOutput,

@@ -36,9 +36,24 @@ test_functions():
 import json
 from typing import List
 
-from dashscope.finetune.reinforcement import (logger, TaskStatus, FunctionType, Datasets, DatasetsType, DataSourceType, Dataset, MountStorage,
-                                              AgenticRLTuning, AgenticRLFunctionComponent, FunctionComponentModel, FunctionComponentRuntime,
-                                              RolloutInput, RewardInput, RewardOutput, RolloutOutput)
+from dashscope.finetune.reinforcement import (
+    logger,
+    TaskStatus,
+    FunctionType,
+    Datasets,
+    DatasetsType,
+    DataSourceType,
+    Dataset,
+    MountStorage,
+    AgenticRLTuning,
+    AgenticRLFunctionComponent,
+    FunctionComponentModel,
+    FunctionComponentRuntime,
+    RolloutInput,
+    RewardInput,
+    RewardOutput,
+    RolloutOutput,
+)
 from dashscope.finetune.agentic_rl import AgenticRL
 from dashscope.finetune.finetunes import FineTunes
 
@@ -54,41 +69,47 @@ async def main_functions():
             AgenticRLFunctionComponent(
                 type=FunctionType.ROLLOUT,
                 fcmodel=FunctionComponentModel(
-                    classpath="functions.rollout.rollout_only.DemoRolloutProcessor"),
+                    classpath="functions.rollout.rollout_only.DemoRolloutProcessor"
+                ),
             ),
             # reward
             AgenticRLFunctionComponent(
                 type=FunctionType.REWARD,
                 fcmodel=FunctionComponentModel(
-                    classpath="functions.reward.reward.DemoRewardProcessor"),
+                    classpath="functions.reward.reward.DemoRewardProcessor"
+                ),
             ),
             # reward-decorator
             AgenticRLFunctionComponent(
                 type=FunctionType.REWARD,
                 fcmodel=FunctionComponentModel(
-                    classpath="functions/reward/reward_decorator.py:SafetyProcessor"),
+                    classpath="functions/reward/reward_decorator.py:SafetyProcessor"
+                ),
             ),
             # group-reward
             AgenticRLFunctionComponent(
                 type=FunctionType.GROUP_REWARD,
                 fcmodel=FunctionComponentModel(
-                    classpath="functions.reward.group_reward.DemoGroupRewardProcessor"),
+                    classpath="functions.reward.group_reward.DemoGroupRewardProcessor"
+                ),
             ),
         ]
 
         # Register functions
-        (rollout_entity_ids,
-         reward_entity_ids,
-         group_reward_entity_ids,
-         rollout_instance_ids,
-         reward_instance_ids,
-         group_reward_instance_ids) = \
-            await client.register_functions(
-                functions=functions,
-                lazy_load=False) # register & load functions
+        (
+            rollout_entity_ids,
+            reward_entity_ids,
+            group_reward_entity_ids,
+            rollout_instance_ids,
+            reward_instance_ids,
+            group_reward_instance_ids,
+        ) = await client.register_functions(
+            functions=functions, lazy_load=False
+        )  # register & load functions
 
         logger.info(
-            f"agentic rl register functions: {rollout_entity_ids=}, {reward_entity_ids=}, {group_reward_entity_ids=}, {rollout_instance_ids=}, {reward_instance_ids=}, {group_reward_instance_ids=}")
+            f"agentic rl register functions: {rollout_entity_ids=}, {reward_entity_ids=}, {group_reward_entity_ids=}, {rollout_instance_ids=}, {reward_instance_ids=}, {group_reward_instance_ids=}"
+        )
 
         with open("./resources/rollout_input.json", "r") as file:
             json_data = json.load(file)
@@ -108,39 +129,63 @@ async def main_functions():
 
         # Testing rollout-only functions
         if rollout_instance_ids and rollout_instance_ids[0]:
-            result = await AgenticRL.test_functions(instance_id=rollout_instance_ids[0],
-                                                    function_type=FunctionType.ROLLOUT,
-                                                    input_data=rollout_input)
-            logger.info(f"agentic rl test rollout: {rollout_instance_ids[0]=}, {result=}")
-            status = result.get('status', None)
-            assert status == TaskStatus.SUCCESS, f"Expected status, got {status}"
+            result = await AgenticRL.test_functions(
+                instance_id=rollout_instance_ids[0],
+                functype=FunctionType.ROLLOUT,
+                input_data=rollout_input,
+            )
+            logger.info(
+                f"agentic rl test rollout: {rollout_instance_ids[0]=}, {result=}"
+            )
+            status = result.get("status", None)
+            assert (
+                status == TaskStatus.SUCCESS
+            ), f"Expected status, got {status}"
 
         # Testing reward functions
         if reward_instance_ids and reward_instance_ids[0]:
-            result = await AgenticRL.test_functions(instance_id=reward_instance_ids[0],
-                                                    function_type=FunctionType.REWARD,
-                                                    input_data=reward_input)
-            logger.info(f"agentic rl test rewards: {reward_instance_ids[0]=}, {result=}")
-            status = result.get('status', None)
-            assert status == TaskStatus.SUCCESS, f"Expected status, got {status}"
+            result = await AgenticRL.test_functions(
+                instance_id=reward_instance_ids[0],
+                functype=FunctionType.REWARD,
+                input_data=reward_input,
+            )
+            logger.info(
+                f"agentic rl test rewards: {reward_instance_ids[0]=}, {result=}"
+            )
+            status = result.get("status", None)
+            assert (
+                status == TaskStatus.SUCCESS
+            ), f"Expected status, got {status}"
 
         # Testing reward-decorator functions
         if reward_instance_ids and reward_instance_ids[1]:
-            result = await AgenticRL.test_functions(instance_id=reward_instance_ids[1],
-                                                    function_type=FunctionType.REWARD,
-                                                    input_data=reward_decorator_input)
-            logger.info(f"agentic rl test rewards-decorator: {reward_instance_ids[1]=}, {result=}")
-            reward_score = result.get('reward', {}).get('reward_score', 0.0)
-            assert reward_score == 0.85, f"Expected reward_score 0.85, got {reward_score}"
+            result = await AgenticRL.test_functions(
+                instance_id=reward_instance_ids[1],
+                functype=FunctionType.REWARD,
+                input_data=reward_decorator_input,
+            )
+            logger.info(
+                f"agentic rl test rewards-decorator: {reward_instance_ids[1]=}, {result=}"
+            )
+            reward_score = result.get("reward", {}).get("reward_score", 0.0)
+            assert (
+                reward_score == 0.85
+            ), f"Expected reward_score 0.85, got {reward_score}"
 
         # Testing group-reward functions
         if group_reward_instance_ids and group_reward_instance_ids[0]:
-            result = await AgenticRL.test_functions(instance_id=group_reward_instance_ids[0],
-                                                    function_type=FunctionType.GROUP_REWARD,
-                                                    input_data=group_reward_input)
-            logger.info(f"agentic rl test group-rewards: {group_reward_instance_ids[0]=}, {result=}")
-            status = result.get('status', None)
-            assert status == TaskStatus.SUCCESS, f"Expected status, got {status}"
+            result = await AgenticRL.test_functions(
+                instance_id=group_reward_instance_ids[0],
+                functype=FunctionType.GROUP_REWARD,
+                input_data=group_reward_input,
+            )
+            logger.info(
+                f"agentic rl test group-rewards: {group_reward_instance_ids[0]=}, {result=}"
+            )
+            status = result.get("status", None)
+            assert (
+                status == TaskStatus.SUCCESS
+            ), f"Expected status, got {status}"
 
         logger.info("All tests functions completed successfully")
 

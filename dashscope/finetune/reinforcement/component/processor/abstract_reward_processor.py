@@ -4,18 +4,27 @@ component/processor/abstract_reward_processor.py
 Abstract base class for Reward business processors.
 Users should inherit this class and implement process() for custom reward calculation logic.
 """
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, Executor
 from typing import Optional, Dict
 
-from dashscope.finetune.reinforcement.component.data.reward_input import \
-    RewardInput
-from dashscope.finetune.reinforcement.component.data.reward_output import \
-    RewardOutput
-from dashscope.finetune.reinforcement.component.func_decorator import \
-    RewardProcessorMeta, SubRewardFunction, AggregateFunction
-from dashscope.finetune.reinforcement.component.processor.abstract_processor import \
-    AbstractProcessor
+from dashscope.finetune.reinforcement.component.data.reward_input import (
+    RewardInput,
+)
+from dashscope.finetune.reinforcement.component.data.reward_output import (
+    RewardOutput,
+)
+from dashscope.finetune.reinforcement.component.func_decorator import (
+    RewardProcessorMeta,
+    SubRewardFunction,
+    AggregateFunction,
+)
+from dashscope.finetune.reinforcement.component.processor.abstract_processor import (
+    AbstractProcessor,
+)
 
 
 class AbstractRewardProcessor(AbstractProcessor):
@@ -30,7 +39,7 @@ class AbstractRewardProcessor(AbstractProcessor):
         ...     def setup(self) -> None:
         ...         # Load embedding models, initialize databases, etc.
         ...         self.embedding_model = load_embedding_model()
-        ...     
+        ...
         ...     def process(self, input: RewardInput) -> RewardOutput:
         ...         # Custom reward calculation
         ...         score = self._compute_score(input.agent_output, input.ground_truth)
@@ -41,6 +50,7 @@ class AbstractRewardProcessor(AbstractProcessor):
         ...             status=TaskStatus.SUCCESS,
         ...         )
     """
+
     _reward_meta: RewardProcessorMeta
     _functions_collected: bool = False
 
@@ -64,14 +74,14 @@ class AbstractRewardProcessor(AbstractProcessor):
             return
 
         # Ensure metadata exists
-        if not hasattr(self, '_reward_meta'):
-            self._reward_meta = RewardProcessorMeta('default')
+        if not hasattr(self, "_reward_meta"):
+            self._reward_meta = RewardProcessorMeta("default")
 
         # Iterate through class methods to collect marked functions
         # Only collect methods defined in this class (not from parent classes)
         for attr_name in dir(self.__class__):
             # Skip private and special attributes
-            if attr_name.startswith('_'):
+            if attr_name.startswith("_"):
                 continue
 
             attr = getattr(self, attr_name)
@@ -81,15 +91,15 @@ class AbstractRewardProcessor(AbstractProcessor):
                 continue
 
             # Check for sub-functions
-            if hasattr(attr, '_is_sub_reward_func'):
-                name = getattr(attr, '_sub_reward_name')
-                weight = getattr(attr, '_sub_weight', 1.0)
+            if hasattr(attr, "_is_sub_reward_func"):
+                name = getattr(attr, "_sub_reward_name")
+                weight = getattr(attr, "_sub_weight", 1.0)
                 self._reward_meta.sub_functions[name] = SubRewardFunction(
                     name, attr, weight
                 )
 
             # Check for aggregate function
-            if hasattr(attr, '_is_aggregate_func'):
+            if hasattr(attr, "_is_aggregate_func"):
                 self._reward_meta.aggregate_function = AggregateFunction(attr)
 
         self._functions_collected = True
@@ -102,26 +112,35 @@ class AbstractRewardProcessor(AbstractProcessor):
 
     def __del__(self):
         """Ensure executor is cleaned up on garbage collection"""
-        if hasattr(self,
-                   '_executor_owned') and self._executor_owned and self._executor is not None:
+        if (
+            hasattr(self, "_executor_owned")
+            and self._executor_owned
+            and self._executor is not None
+        ):
             self._executor.shutdown(wait=False)
 
     def get_weights(self):
-        return {name: self._reward_meta.sub_functions[name].weight
-                for name in self._reward_meta.sub_functions}
+        return {
+            name: self._reward_meta.sub_functions[name].weight
+            for name in self._reward_meta.sub_functions
+        }
 
     def get_scores(self, sub_rewards: Dict[str, RewardOutput]):
-        return {name: sub_rewards[name].reward.reward_score
-                for name in sub_rewards}
+        return {
+            name: sub_rewards[name].reward.reward_score for name in sub_rewards
+        }
 
     def get_total(self, sub_rewards: Dict[str, RewardOutput]):
         total = 0.0
         for name, reward_output in sub_rewards.items():
             if name not in self._reward_meta.sub_functions:
                 raise ValueError(
-                    f"Sub-reward function '{name}' is not registered. Available: {list(self._reward_meta.sub_functions.keys())}")
-            total += reward_output.reward.reward_score * \
-                     self._reward_meta.sub_functions[name].weight
+                    f"Sub-reward function '{name}' is not registered. Available: {list(self._reward_meta.sub_functions.keys())}"
+                )
+            total += (
+                reward_output.reward.reward_score
+                * self._reward_meta.sub_functions[name].weight
+            )
         return total
 
     def get_reward_metrics(self, sub_rewards: Dict[str, RewardOutput]):
@@ -129,7 +148,8 @@ class AbstractRewardProcessor(AbstractProcessor):
         for name, reward_output in sub_rewards.items():
             # Add namespace prefix to avoid key collisions
             for key, value in (
-                    reward_output.reward.reward_metrics or {}).items():
+                reward_output.reward.reward_metrics or {}
+            ).items():
                 prefixed_key = f"{name}.{key}"
                 reward_metrics[prefixed_key] = value
 

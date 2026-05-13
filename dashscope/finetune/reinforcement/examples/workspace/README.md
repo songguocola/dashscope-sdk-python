@@ -100,6 +100,22 @@ dashscope rl --help  # View full command help
 │ delete              🗑️ Delete a job record (releases metadata)                                                                                                                                                  │
 │ logs                📜 Fetch job execution logs (supports pagination)                                                                                                                                           │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+dashscope rl register_functions \
+  --rollout-classpaths "functions.rollout.rollout_only.DemoRolloutProcessor" \
+  --no-lazy-load \
+  --output-format json
+
+ROLLOUT_INSTANCE_ID="ro-ins-****"
+dashscope rl test_functions "$ROLLOUT_INSTANCE_ID" \
+  --type rollout \
+  --input ./resources/rollout_input.json
+  
+dashscope rl run -c job.yaml -o json
+
+JOB_ID="ft-****"
+dashscope rl get "$JOB_ID" -o json
+dashscope rl cancel "$JOB_ID"
 ```
 
 ## Best Practice Tips

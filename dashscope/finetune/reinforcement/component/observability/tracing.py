@@ -32,7 +32,9 @@ from enum import Enum
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 from dashscope.finetune.reinforcement.common.log import logger
-from dashscope.finetune.reinforcement.common.model_types import FunctionType as FuncType
+from dashscope.finetune.reinforcement.common.model_types import (
+    FunctionType as FuncType,
+)
 from dashscope.finetune.reinforcement.component.data.base_data_model import (
     BaseDataModel,
 )
@@ -66,11 +68,13 @@ _SERIALIZE_MAX_STR_LEN = 128 * 1024  # 128KB per string field
 # Request-local upstream trace linkage (used to decide whether FC traces can
 # correlate with upstream RFT traces). Stored in contextvars so it propagates
 # across async and threadpool offload (FuncManager uses copy_context()).
-_UPSTREAM_TRACEPARENT_PRESENT: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    "agentic_rl_upstream_traceparent_present", default=False
+_UPSTREAM_TRACEPARENT_PRESENT: contextvars.ContextVar[bool] = (
+    contextvars.ContextVar(
+        "agentic_rl_upstream_traceparent_present", default=False
+    )
 )
-_UPSTREAM_TRACE_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
-    "agentic_rl_upstream_trace_id", default=None
+_UPSTREAM_TRACE_ID: contextvars.ContextVar[Optional[str]] = (
+    contextvars.ContextVar("agentic_rl_upstream_trace_id", default=None)
 )
 
 # Baggage keys — aligned with the Bailian Agentic RL Tracing specification.
@@ -259,7 +263,9 @@ def set_upstream_trace_linkage(
     return t1, t2
 
 
-def reset_upstream_trace_linkage(tokens: Tuple[contextvars.Token, contextvars.Token]) -> None:
+def reset_upstream_trace_linkage(
+    tokens: Tuple[contextvars.Token, contextvars.Token],
+) -> None:
     """Reset request-local upstream linkage flags."""
     t1, t2 = tokens
     _UPSTREAM_TRACEPARENT_PRESENT.reset(t1)
@@ -396,13 +402,15 @@ def ensure_agentic_rl_baggage_span_processor() -> None:
             # No real TracerProvider yet — create one using OTEL_* env vars.
             # This runs inside the forked worker process, so BatchSpanProcessor
             # background thread and exporter connection are fork-safe.
-            endpoint = os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") or os.getenv(
-                "OTEL_EXPORTER_OTLP_ENDPOINT"
-            )
+            endpoint = os.getenv(
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+            ) or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
             if not endpoint:
                 # No endpoint configured — keep state "pending" so that if an external
                 # set_tracer_provider() call happens later, a retry can still succeed.
-                logger.debug("[OTel] OTEL_EXPORTER_OTLP_TRACES_ENDPOINT not set; skipping TracerProvider init")
+                logger.debug(
+                    "[OTel] OTEL_EXPORTER_OTLP_TRACES_ENDPOINT not set; skipping TracerProvider init"
+                )
                 return
             try:
                 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
@@ -413,11 +421,15 @@ def ensure_agentic_rl_baggage_span_processor() -> None:
 
                 # Resource.create() reads OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES
                 # automatically; we only inject service.instance.id (pid) on top.
-                resource = Resource.create({"service.instance.id": f"worker-{os.getpid()}"})
+                resource = Resource.create(
+                    {"service.instance.id": f"worker-{os.getpid()}"}
+                )
                 provider = TracerProvider(resource=resource)
                 # Pass endpoint explicitly: OTLPSpanExporter auto-reads OTEL_EXPORTER_OTLP_ENDPOINT
                 # but NOT OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, so we resolve it ourselves.
-                provider.add_span_processor(BatchSpanProcessor(OTLPHttpExporter(endpoint=endpoint)))
+                provider.add_span_processor(
+                    BatchSpanProcessor(OTLPHttpExporter(endpoint=endpoint))
+                )
                 ot_trace.set_tracer_provider(provider)
                 logger.info(
                     "[OTel] TracerProvider initialized: endpoint=%s pid=%s",
@@ -425,7 +437,9 @@ def ensure_agentic_rl_baggage_span_processor() -> None:
                     os.getpid(),
                 )
             except Exception as exc:  # pragma: no cover
-                logger.error("[OTel] Failed to initialize TracerProvider: %s", exc)
+                logger.error(
+                    "[OTel] Failed to initialize TracerProvider: %s", exc
+                )
                 _baggage_span_processor_state = "skipped"
                 return
 
@@ -438,7 +452,9 @@ def ensure_agentic_rl_baggage_span_processor() -> None:
 
         provider.add_span_processor(BaggageSpanProcessor(_allow_baggage_key))
         _baggage_span_processor_state = "installed"
-        logger.info("[OTel] BaggageSpanProcessor registered (pid=%s)", os.getpid())
+        logger.info(
+            "[OTel] BaggageSpanProcessor registered (pid=%s)", os.getpid()
+        )
 
 
 @contextmanager
@@ -463,11 +479,17 @@ def rollout_context(
         return
     ctx = otel_context.get_current()
     if rollout_id:
-        ctx = baggage.set_baggage(AGENTIC_RL_ROLLOUT_ID_BAGGAGE_KEY, rollout_id, ctx)
+        ctx = baggage.set_baggage(
+            AGENTIC_RL_ROLLOUT_ID_BAGGAGE_KEY, rollout_id, ctx
+        )
     if sample_id:
-        ctx = baggage.set_baggage(AGENTIC_RL_SAMPLE_ID_BAGGAGE_KEY, sample_id, ctx)
+        ctx = baggage.set_baggage(
+            AGENTIC_RL_SAMPLE_ID_BAGGAGE_KEY, sample_id, ctx
+        )
     if attempt_id:
-        ctx = baggage.set_baggage(AGENTIC_RL_ATTEMPT_ID_BAGGAGE_KEY, attempt_id, ctx)
+        ctx = baggage.set_baggage(
+            AGENTIC_RL_ATTEMPT_ID_BAGGAGE_KEY, attempt_id, ctx
+        )
     token = otel_context.attach(ctx)
     try:
         yield
@@ -560,7 +582,11 @@ def apply_processor_span_attributes_before(
     kind_upper = func_type.value.upper()  # "ROLLOUT" or "REWARD"
     span.set_attribute("gen_ai.span.kind", kind_upper)
     # operation.name mirrors the span-name prefix per Bailian specification
-    op_name = _ROLLOUT_SPAN_PREFIX if func_type == FuncType.ROLLOUT else _REWARD_SPAN_PREFIX
+    op_name = (
+        _ROLLOUT_SPAN_PREFIX
+        if func_type == FuncType.ROLLOUT
+        else _REWARD_SPAN_PREFIX
+    )
     span.set_attribute("operation.name", op_name)
     rid, sid, aid = _extract_baggage_ids_from_input(input_data)
     if rid:
@@ -580,7 +606,9 @@ def apply_processor_span_attributes_before(
         span.set_attribute("input.value", span_payload_preview(input_data))
 
 
-def apply_processor_span_attributes_after(span: Any, result: Any, *, capture_full_io: bool = True) -> None:
+def apply_processor_span_attributes_after(
+    span: Any, result: Any, *, capture_full_io: bool = True
+) -> None:
     """Set output-side span attributes: full ``output.value`` payload and a result summary (consistent with ``_set_result_attributes``)."""
     if capture_full_io and result is not None:
         span.set_attribute("output.value", span_payload_preview(result))
@@ -594,7 +622,11 @@ def _set_result_attributes(span: Any, result: Any) -> None:
     if status_val is not None:
         span.set_attribute(
             "agentic_rl.result.status",
-            status_val.value if hasattr(status_val, "value") else str(status_val),
+            (
+                status_val.value
+                if hasattr(status_val, "value")
+                else str(status_val)
+            ),
         )
     latency = getattr(result, "latency", None)
     if latency is not None:

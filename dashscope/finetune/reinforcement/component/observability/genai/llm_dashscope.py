@@ -6,24 +6,28 @@ from opentelemetry.trace.status import Status, StatusCode
 from typing import Any, Dict
 
 from dashscope.finetune.reinforcement.common.log import logger
-from dashscope.finetune.reinforcement.component.observability.genai._core import \
-    GENAI_AVAILABLE, get_handler
+from dashscope.finetune.reinforcement.component.observability.genai._core import (
+    GENAI_AVAILABLE,
+    get_handler,
+)
 from dashscope.finetune.reinforcement.component.observability.genai.messages import (
     dashscope_response_to_output_messages,
     openai_chat_messages_to_input_messages,
 )
-from dashscope.finetune.reinforcement.component.observability.tracing import \
-    is_tracing_enabled, log_trace_id
+from dashscope.finetune.reinforcement.component.observability.tracing import (
+    is_tracing_enabled,
+    log_trace_id,
+)
 
 
 def _fill_llm_invocation_from_dashscope_kwargs(
-        inv: Any,
-        model: Any,
-        prompt: Any,
-        history: Any,
-        messages: Any,
-        kwargs: Dict[str, Any],
-        provider: str,
+    inv: Any,
+    model: Any,
+    prompt: Any,
+    history: Any,
+    messages: Any,
+    kwargs: Dict[str, Any],
+    provider: str,
 ) -> None:
     inv.provider = provider
     inv.request_model = model
@@ -51,10 +55,10 @@ def _fill_llm_invocation_from_dashscope_kwargs(
 
 
 def _apply_dashscope_response_to_invocation(
-        inv: Any,
-        response: Any,
-        *,
-        request_model: Any = None,
+    inv: Any,
+    response: Any,
+    *,
+    request_model: Any = None,
 ) -> None:
     inv.response_id = getattr(response, "request_id", None)
     inv.response_model_name = getattr(response, "model", None) or request_model
@@ -70,10 +74,10 @@ def _apply_dashscope_response_to_invocation(
 
 
 def instrument_dashscope_generation_call(
-        generation_cls: Any,
-        *,
-        provider: str = "dashscope",
-        handler: Any = None,
+    generation_cls: Any,
+    *,
+    provider: str = "dashscope",
+    handler: Any = None,
 ) -> Any:
     """
     Attach a GenAI ``llm`` span to ``Generation.call`` (a class method).
@@ -105,18 +109,21 @@ def instrument_dashscope_generation_call(
     h = handler if handler is not None else get_handler()
 
     def wrapped_call(
-            cls: Any,
-            model: Any = None,
-            prompt: Any = None,
-            history: Any = None,
-            api_key: Any = None,
-            messages: Any = None,
-            **kwargs: Any,
+        cls: Any,
+        model: Any = None,
+        prompt: Any = None,
+        history: Any = None,
+        api_key: Any = None,
+        messages: Any = None,
+        **kwargs: Any,
     ) -> Any:
         # Pass through without a span when tracing is off, the GenAI library is absent,
         # or the call is a streaming request (spanning a generator would mis-attribute latency).
-        if not is_tracing_enabled() or not GENAI_AVAILABLE or kwargs.get(
-                "stream"):
+        if (
+            not is_tracing_enabled()
+            or not GENAI_AVAILABLE
+            or kwargs.get("stream")
+        ):
             return orig_fn(
                 cls,
                 model,
@@ -141,8 +148,9 @@ def instrument_dashscope_generation_call(
                     messages=messages,
                     **kwargs,
                 )
-                _apply_dashscope_response_to_invocation(inv, response,
-                                                        request_model=model)
+                _apply_dashscope_response_to_invocation(
+                    inv, response, request_model=model
+                )
                 # Set OK status on successful execution
                 if hasattr(inv, "span") and inv.span is not None:
                     inv.span.set_status(Status(StatusCode.OK))

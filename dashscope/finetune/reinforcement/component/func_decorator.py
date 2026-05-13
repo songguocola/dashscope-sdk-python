@@ -4,8 +4,12 @@ from functools import wraps
 from typing import Callable, Dict, Optional, Type
 
 from dashscope.finetune.reinforcement.common.log import logger
-from dashscope.finetune.reinforcement.component.data import RewardInput, \
-    RewardOutput, Reward, TaskStatus
+from dashscope.finetune.reinforcement.component.data import (
+    RewardInput,
+    RewardOutput,
+    Reward,
+    TaskStatus,
+)
 
 
 class SubRewardFunction:
@@ -60,7 +64,8 @@ class RewardProcessorMeta:
         # Deep copy aggregate function if exists
         if self.aggregate_function:
             new_meta.aggregate_function = copy.deepcopy(
-                self.aggregate_function, memo)
+                self.aggregate_function, memo
+            )
 
         return new_meta
 
@@ -78,7 +83,7 @@ def reward_func(processor_id: str) -> Callable[[Type], Type]:
     def decorator(cls: Type) -> Type:
         # Create metadata object and attach to class
         meta = RewardProcessorMeta(processor_id)
-        setattr(cls, '_reward_meta', meta)
+        setattr(cls, "_reward_meta", meta)
 
         async def process(self, input_data: RewardInput) -> RewardOutput:
             """Processes input by executing all sub-reward functions and aggregating results"""
@@ -96,9 +101,7 @@ def reward_func(processor_id: str) -> Callable[[Type], Type]:
                     # Run synchronous function in executor
                     loop = asyncio.get_running_loop()
                     task = loop.run_in_executor(
-                        self._executor,
-                        func,
-                        input_data
+                        self._executor, func, input_data
                     )
                 tasks.append((name, task))
 
@@ -110,12 +113,13 @@ def reward_func(processor_id: str) -> Callable[[Type], Type]:
 
                 except Exception as e:
                     logger.error(
-                        f"Error in sub-reward function {name}: {str(e)}")
+                        f"Error in sub-reward function {name}: {str(e)}"
+                    )
                     # Store error as a zero score
                     sub_rewards[name] = RewardOutput(
                         reward=Reward(reward_score=0.0, reward_metrics={}),
                         status=TaskStatus.FAILED,
-                        error=str(e)
+                        error=str(e),
                     )
 
             # Call aggregation function if available
@@ -147,13 +151,13 @@ def reward_func(processor_id: str) -> Callable[[Type], Type]:
             )
 
         # Set the new process method
-        setattr(cls, 'process', process)
+        setattr(cls, "process", process)
 
         # Fix abstract method issue
-        if hasattr(cls, '__abstractmethods__'):
+        if hasattr(cls, "__abstractmethods__"):
             # Create a new set without 'process'
             abstract_methods = set(cls.__abstractmethods__)
-            abstract_methods.discard('process')
+            abstract_methods.discard("process")
             cls.__abstractmethods__ = frozenset(abstract_methods)
 
         return cls
@@ -161,8 +165,9 @@ def reward_func(processor_id: str) -> Callable[[Type], Type]:
     return decorator
 
 
-def sub_reward_func(name: Optional[str] = None, sub_weight: float = 1.0) -> \
-Callable[[Callable], Callable]:
+def sub_reward_func(
+    name: Optional[str] = None, sub_weight: float = 1.0
+) -> Callable[[Callable], Callable]:
     """Decorator to mark sub-reward functions and specify weights"""
 
     def decorator(func: Callable) -> Callable:
@@ -170,12 +175,14 @@ Callable[[Callable], Callable]:
 
         # Preserve async nature of the original function
         if asyncio.iscoroutinefunction(func):
+
             @wraps(func)
             async def async_wrapper(self, input_data: RewardInput):
                 return await func(self, input_data)
 
             wrapper = async_wrapper
         else:
+
             @wraps(func)
             def sync_wrapper(self, input_data: RewardInput):
                 return func(self, input_data)
@@ -183,9 +190,9 @@ Callable[[Callable], Callable]:
             wrapper = sync_wrapper
 
         # Attach metadata
-        setattr(wrapper, '_is_sub_reward_func', True)
-        setattr(wrapper, '_sub_reward_name', func_name)
-        setattr(wrapper, '_sub_weight', sub_weight)
+        setattr(wrapper, "_is_sub_reward_func", True)
+        setattr(wrapper, "_sub_reward_name", func_name)
+        setattr(wrapper, "_sub_weight", sub_weight)
         return wrapper
 
     return decorator
@@ -194,12 +201,14 @@ Callable[[Callable], Callable]:
 def aggregate_func(func: Callable) -> Callable:
     """Decorator to mark aggregation functions"""
     if asyncio.iscoroutinefunction(func):
+
         @wraps(func)
         async def async_wrapper(self, *args, **kwargs):
             return await func(self, *args, **kwargs)
 
         wrapper = async_wrapper
     else:
+
         @wraps(func)
         def sync_wrapper(self, *args, **kwargs):
             return func(self, *args, **kwargs)

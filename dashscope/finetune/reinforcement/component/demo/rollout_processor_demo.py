@@ -8,14 +8,19 @@ Demonstrates simple rollout execution flow (simulating Agent invocation).
 import time
 
 from dashscope.finetune.reinforcement.common.log import logger
-from dashscope.finetune.reinforcement.component.data.base_data_model import \
-    AgentOutput, TaskStatus
-from dashscope.finetune.reinforcement.component.data.rollout_input import \
-    RolloutInput
-from dashscope.finetune.reinforcement.component.data.rollout_output import \
-    RolloutOutput
-from dashscope.finetune.reinforcement.component.processor.abstract_rollout_processor import \
-    AbstractRolloutProcessor
+from dashscope.finetune.reinforcement.component.data.base_data_model import (
+    AgentOutput,
+    TaskStatus,
+)
+from dashscope.finetune.reinforcement.component.data.rollout_input import (
+    RolloutInput,
+)
+from dashscope.finetune.reinforcement.component.data.rollout_output import (
+    RolloutOutput,
+)
+from dashscope.finetune.reinforcement.component.processor.abstract_rollout_processor import (
+    AbstractRolloutProcessor,
+)
 
 
 class DemoRolloutProcessor(AbstractRolloutProcessor):
@@ -30,12 +35,13 @@ class DemoRolloutProcessor(AbstractRolloutProcessor):
     def setup(self) -> None:
         """
         Initialize workspace before processing requests.
-        
+
         Demo implementation: Logs startup message.
         In production, this could load ML models, establish connections, etc.
         """
         logger.info(
-            "[DemoRolloutProcessor] setup() called - initializing workspace")
+            "[DemoRolloutProcessor] setup() called - initializing workspace"
+        )
         # Demo: No actual initialization needed
         # In production, you might:
         # - Load ML models into memory

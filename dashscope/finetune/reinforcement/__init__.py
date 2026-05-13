@@ -27,13 +27,24 @@ from dashscope.finetune.reinforcement.common.constants import (
     LOGGER_FILTER_FIELDS,
 )
 from dashscope.finetune.reinforcement.common.errors import (
-    AgenticRLError, InputError, OutputError, BaseConnectionError,
-    OSSConnectionError, OSSUploadError, DeploymentError, RegistrationError,
-    FunctionLoadError, InstanceWarmupError, InstanceQueryError,
+    AgenticRLError,
+    InputError,
+    OutputError,
+    BaseConnectionError,
+    OSSConnectionError,
+    OSSUploadError,
+    DeploymentError,
+    RegistrationError,
+    FunctionLoadError,
+    InstanceWarmupError,
+    InstanceQueryError,
     FunctionLayerError,
-    ValidationError, ConfigurationError,
-    BasePermissionError, IOErrorWithCode,
-    RuntimeErrorWithCode, ValueErrorWithCode,
+    ValidationError,
+    ConfigurationError,
+    BasePermissionError,
+    IOErrorWithCode,
+    RuntimeErrorWithCode,
+    ValueErrorWithCode,
 )
 from dashscope.finetune.reinforcement.common.log import logger
 from dashscope.finetune.reinforcement.common.model import (
@@ -52,7 +63,7 @@ from dashscope.finetune.reinforcement.common.model import (
     Training,
     Observability,
     AgenticRLTuning,
-    Models
+    Models,
 )
 from dashscope.finetune.reinforcement.common.model_types import (
     FileSpec,
@@ -97,29 +108,31 @@ from dashscope.finetune.reinforcement.component.data import (
     GroupReward,
     GroupRewardInput,
     GroupRewardOutput,
-    TaskStatus
+    TaskStatus,
 )
-from dashscope.finetune.reinforcement.component.func_decorator import \
-    RewardProcessorMeta
+from dashscope.finetune.reinforcement.component.func_decorator import (
+    RewardProcessorMeta,
+)
 from dashscope.finetune.reinforcement.component.processor.abstract_rollout_processor import (
-    AbstractRolloutProcessor
+    AbstractRolloutProcessor,
 )
 from dashscope.finetune.reinforcement.component.processor.abstract_reward_processor import (
-    AbstractRewardProcessor
+    AbstractRewardProcessor,
 )
 from dashscope.finetune.reinforcement.component.processor.abstract_group_reward_processor import (
-    AbstractGroupRewardProcessor
+    AbstractGroupRewardProcessor,
 )
 from dashscope.finetune.reinforcement.component.observability import (
-    observe_processor
+    observe_processor,
 )
 
 
 def __getattr__(name):
-    if name == 'app':
+    if name == "app":
         from dashscope.finetune.reinforcement.common.cli import app
+
         return app
-    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
@@ -150,7 +163,6 @@ __all__ = [
     "FC_OSS_FILE_SIZE_WARNING",
     "HTTP_REQUEST_TIMEOUT",
     "LOGGER_FILTER_FIELDS",
-
     # Errors
     "AgenticRLError",
     "InputError",
@@ -170,10 +182,8 @@ __all__ = [
     "IOErrorWithCode",
     "RuntimeErrorWithCode",
     "ValueErrorWithCode",
-
     # Logging
     "logger",
-
     # Utilities
     "check_file",
     "client_fc",
@@ -190,7 +200,6 @@ __all__ = [
     "extract_reward_weights",
     "get_weights_from_file",
     "serialize_for_output",
-
     # Model Types
     "FileSpec",
     "FunctionType",
@@ -201,7 +210,6 @@ __all__ = [
     "Status",
     "StatusType",
     "TrainingType",
-
     # Data models
     "RolloutInput",
     "RolloutOutput",
@@ -213,7 +221,6 @@ __all__ = [
     "Reward",
     "AgentOutput",
     "TaskStatus",
-
     # Func Manager
     "reward_func",
     "sub_reward_func",
@@ -223,7 +230,6 @@ __all__ = [
     "AbstractRewardProcessor",
     "AbstractGroupRewardProcessor",
     "observe_processor",
-
     # Core Models
     "FunctionComponentModel",
     "TuningModel",
@@ -241,7 +247,6 @@ __all__ = [
     "Observability",
     "AgenticRLTuning",
     "Models",
-
     # CLI
     "app",
 ]

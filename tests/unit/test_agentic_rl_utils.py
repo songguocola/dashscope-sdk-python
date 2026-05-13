@@ -89,7 +89,7 @@ class TestAgenticRLUtils:
 
         # Execute function
         create_deployment_files(
-            type=FunctionType.ROLLOUT,
+            functype=FunctionType.ROLLOUT,
             dirpath=str(test_dir),
             filepath="processor.py",
             classname="DemoProcessor",
@@ -114,7 +114,7 @@ class TestAgenticRLUtils:
             "class MyProcessor: pass")
 
         create_deployment_files(
-            type=FunctionType.REWARD,
+            functype=FunctionType.REWARD,
             dirpath=str(test_dir),
             filepath="module/processor.py",
             classname="MyProcessor",
@@ -137,8 +137,8 @@ class TestAgenticRLUtils:
 
         with pytest.raises(Exception):
             create_deployment_files(
-                type=FunctionType.GROUP_REWARD,
-                zipdir=str(test_dir),
+                functype=FunctionType.GROUP_REWARD,
+                dirpath=str(test_dir),
                 filepath="missing.py",
                 classname="MissingProcessor"
             )

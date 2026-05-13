@@ -4,6 +4,7 @@ examples/workspace/reward.py
 Demo implementation of a Reward Processor.
 Demonstrates how to score Agent outputs based on simple rules.
 """
+
 from __future__ import annotations
 
 import math
@@ -14,14 +15,18 @@ from typing import List
 
 from dashscope.finetune.reinforcement import RewardInput, RewardOutput
 from dashscope.finetune.reinforcement import logger
-from dashscope.finetune.reinforcement.component.data.base_data_model import \
-    TaskStatus
-from dashscope.finetune.reinforcement.component.data.reward_output import \
-    Reward
-from dashscope.finetune.reinforcement.component.observability import \
-    observe_processor
-from dashscope.finetune.reinforcement.component.processor.abstract_reward_processor import \
-    AbstractRewardProcessor
+from dashscope.finetune.reinforcement.component.data.base_data_model import (
+    TaskStatus,
+)
+from dashscope.finetune.reinforcement.component.data.reward_output import (
+    Reward,
+)
+from dashscope.finetune.reinforcement.component.observability import (
+    observe_processor,
+)
+from dashscope.finetune.reinforcement.component.processor.abstract_reward_processor import (
+    AbstractRewardProcessor,
+)
 
 
 def normalize_option(option: str) -> str:
@@ -49,12 +54,15 @@ def float_eval(input_str: str) -> float:
     return float(expr.evalf())
 
 
-def scalar_are_results_same(pred_result: str, true_result: str,
-                            rel_tol: float) -> bool:
-    pred_result = str(
-        pred_result) if pred_result is not None else ""  # type: ignore
-    true_result = str(
-        true_result) if true_result is not None else ""  # type: ignore
+def scalar_are_results_same(
+    pred_result: str, true_result: str, rel_tol: float
+) -> bool:
+    pred_result = (
+        str(pred_result) if pred_result is not None else ""
+    )  # type: ignore
+    true_result = (
+        str(true_result) if true_result is not None else ""
+    )  # type: ignore
 
     if pred_result.strip() == true_result.strip():
         return True
@@ -77,8 +85,9 @@ def scalar_are_results_same(pred_result: str, true_result: str,
 
 
 async def evaluate(prediction: str, ground_truth: str) -> float:
-    match = re.search(r"###\s*ANSWER:\s*(.+?)(\s*###|$)", prediction,
-                      re.DOTALL)
+    match = re.search(
+        r"###\s*ANSWER:\s*(.+?)(\s*###|$)", prediction, re.DOTALL
+    )
     answer_to_eval = match.group(1) if match else prediction
     return float(scalar_are_results_same(answer_to_eval, ground_truth, 1e-2))
 
@@ -113,8 +122,7 @@ class DemoRewardProcessor(AbstractRewardProcessor):
 
         result = RewardOutput(
             reward=Reward(
-                reward_score=score,
-                reward_metrics={"test1": 0.5, "test2": 0.3}
+                reward_score=score, reward_metrics={"test1": 0.5, "test2": 0.3}
             ),
             status=TaskStatus.SUCCESS,
             error=None,

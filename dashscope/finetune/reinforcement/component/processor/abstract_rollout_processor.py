@@ -7,12 +7,15 @@ Users should inherit this class and implement process() for custom agent inferen
 
 from abc import abstractmethod
 
-from dashscope.finetune.reinforcement.component.data.rollout_input import \
-    RolloutInput
-from dashscope.finetune.reinforcement.component.data.rollout_output import \
-    RolloutOutput
-from dashscope.finetune.reinforcement.component.processor.abstract_processor import \
-    AbstractProcessor
+from dashscope.finetune.reinforcement.component.data.rollout_input import (
+    RolloutInput,
+)
+from dashscope.finetune.reinforcement.component.data.rollout_output import (
+    RolloutOutput,
+)
+from dashscope.finetune.reinforcement.component.processor.abstract_processor import (
+    AbstractProcessor,
+)
 
 
 class AbstractRolloutProcessor(AbstractProcessor):
@@ -27,7 +30,7 @@ class AbstractRolloutProcessor(AbstractProcessor):
         ...     def setup(self) -> None:
         ...         # Load models, initialize connections, etc.
         ...         self.model = load_model("path/to/model")
-        ...     
+        ...
         ...     def process(self, input: RolloutInput) -> RolloutOutput:
         ...         # Call model service for inference
         ...         response = self._call_model(input)

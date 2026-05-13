@@ -10,8 +10,9 @@ from enum import Enum
 from pydantic import BaseModel, Field, SecretStr
 from typing import Any, Dict, List, Optional, Union
 
-from dashscope.finetune.reinforcement.common.model_types import \
-    FunctionType as FuncType
+from dashscope.finetune.reinforcement.common.model_types import (
+    FunctionType as FuncType,
+)
 
 
 # ============================================================================ #
@@ -31,12 +32,14 @@ def _generate_ro_id(length: int) -> str:
 
 class TaskStatus(str, Enum):
     """Task execution status."""
+
     SUCCESS = "success"
     FAILED = "failed"
 
 
 class ModelProtocol(str, Enum):
     """Model API protocol types."""
+
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
 
@@ -51,6 +54,7 @@ class BaseDataModel(BaseModel):
     Base class for processor input parameters.
     All business-type processor input models should inherit from this class.
     """
+
     func_type: FuncType
 
     class Config:
@@ -71,8 +75,9 @@ class ModelResource(BaseModel):
         ...,
         description="The specific identifier for the model (e.g., 'gpt-4o', 'llama-3-70b').",
     )
-    base_url: str = Field(...,
-                          description="The endpoint URL for the model provider.")
+    base_url: str = Field(
+        ..., description="The endpoint URL for the model provider."
+    )
     api_key: SecretStr = Field(
         ..., description="The authentication key for the provider."
     )
@@ -82,6 +87,7 @@ class RequestMetadata(BaseModel):
     """
     Defines the metadata required for the request.
     """
+
     job_id: str = Field(
         ...,
         description="A unique identifier for the job.",

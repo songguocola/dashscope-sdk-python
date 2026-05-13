@@ -69,16 +69,19 @@ def trace_client(client: Any) -> None:
 
     # 1. Full OpenAI client: has .chat.completions.create
     chat = getattr(client, "chat", None)
-    completions = getattr(chat, "completions",
-                          None) if chat is not None else None
+    completions = (
+        getattr(chat, "completions", None) if chat is not None else None
+    )
     if completions is not None and callable(
-            getattr(completions, "create", None)):
+        getattr(completions, "create", None)
+    ):
         instrument_openai_chat_completions(client)
         return
 
     # 2. Completions resource directly: has .create but no .chat
-    if callable(getattr(client, "create", None)) and not hasattr(client,
-                                                                 "chat"):
+    if callable(getattr(client, "create", None)) and not hasattr(
+        client, "chat"
+    ):
         instrument_openai_chat_completions(client)
         return
 
@@ -87,10 +90,12 @@ def trace_client(client: Any) -> None:
     async_client = getattr(client, "async_client", None)
     if sync_client is not None or async_client is not None:
         if sync_client is not None and callable(
-                getattr(sync_client, "create", None)):
+            getattr(sync_client, "create", None)
+        ):
             instrument_openai_chat_completions(sync_client)
         if async_client is not None and callable(
-                getattr(async_client, "create", None)):
+            getattr(async_client, "create", None)
+        ):
             instrument_openai_chat_completions(async_client)
         return
 
@@ -105,6 +110,7 @@ def trace_client(client: Any) -> None:
 
     # Unsupported client type: silent degradation (observability should never break business logic)
     import logging
+
     logging.getLogger(__name__).warning(
         "trace_client: unsupported client type %r. Skipping tracing. "
         "Expected an OpenAI client, LangChain-like wrapper, or DashScope Generation class.",

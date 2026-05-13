@@ -62,7 +62,11 @@ _logger = logging.getLogger(__name__)
 # Truthy env values for observability toggles (aligned with ``messages._env_truthy``).
 _ENV_TRUTHY_VALUES = ("true", "1", "yes", "y", "on")
 
-_DEBUG_BINDING = os.environ.get("AGENTIC_RL_DEBUG_SPAN_BINDING", "").strip().lower() in _ENV_TRUTHY_VALUES
+_DEBUG_BINDING = (
+    os.environ.get("AGENTIC_RL_DEBUG_SPAN_BINDING", "").strip().lower()
+    in _ENV_TRUTHY_VALUES
+)
+
 
 # Phase-A diagnostics: nested ``execute_tool`` spans (ainvoke vs invoke vs fallback).
 # Set ``AGENTIC_RL_DEBUG_TRACE_TOOL=true`` for wrap_ainvoke / wrap_invoke lines.
@@ -73,7 +77,9 @@ def _env_flag(name: str) -> bool:
 
 
 _DEBUG_TRACE_TOOL_WRAP = _env_flag("AGENTIC_RL_DEBUG_TRACE_TOOL")
-_DEBUG_TRACE_TOOL_FALLBACK = _env_flag("AGENTIC_RL_DEBUG_TRACE_TOOL_FALLBACK") or _DEBUG_TRACE_TOOL_WRAP
+_DEBUG_TRACE_TOOL_FALLBACK = (
+    _env_flag("AGENTIC_RL_DEBUG_TRACE_TOOL_FALLBACK") or _DEBUG_TRACE_TOOL_WRAP
+)
 
 # Default: dedupe nested ainvoke→invoke double spans. Escape hatch for rare debugging only.
 _TRACE_TOOL_NO_DEDUP = _env_flag("AGENTIC_RL_TRACE_TOOL_NO_DEDUP")
@@ -121,7 +127,9 @@ def _trace_hex_or_none() -> Optional[str]:
 
 def _incr_outer_async_layer(trace_key: str) -> None:
     with _outer_async_tool_lock:
-        _outer_async_tool_depth[trace_key] = _outer_async_tool_depth.get(trace_key, 0) + 1
+        _outer_async_tool_depth[trace_key] = (
+            _outer_async_tool_depth.get(trace_key, 0) + 1
+        )
 
 
 def _decr_outer_async_layer(trace_key: str) -> None:
@@ -185,7 +193,10 @@ def _extract_rollout_id_from_config(config: Any) -> str:
             cfg = config.get("configurable")
             if isinstance(cfg, Dict):
                 meta = cfg.get("metadata")
-                if isinstance(meta, Dict) and meta.get("rollout_id") is not None:
+                if (
+                    isinstance(meta, Dict)
+                    and meta.get("rollout_id") is not None
+                ):
                     return str(meta["rollout_id"])
         else:
             md = getattr(config, "metadata", None) or {}
@@ -194,7 +205,10 @@ def _extract_rollout_id_from_config(config: Any) -> str:
             cfg = getattr(config, "configurable", None)
             if isinstance(cfg, Dict):
                 meta = cfg.get("metadata")
-                if isinstance(meta, Dict) and meta.get("rollout_id") is not None:
+                if (
+                    isinstance(meta, Dict)
+                    and meta.get("rollout_id") is not None
+                ):
                     return str(meta["rollout_id"])
     except Exception:
         pass
@@ -322,7 +336,9 @@ def _maybe_start_fallback_tool_span(tool_name: str) -> Any:
         tracer = get_tracer()
         if tracer is None:
             return _NoopCM()
-        return _FallbackSpanCM(tracer.start_as_current_span(f"execute_tool {tool_name}"))
+        return _FallbackSpanCM(
+            tracer.start_as_current_span(f"execute_tool {tool_name}")
+        )
     except Exception:
         return _NoopCM()
 
@@ -427,11 +443,15 @@ class _ToolSpanScope:
         # - gen_ai.tool.call.arguments (Y)
         # The result is written on __exit__ (when available).
         effective = self.invocation_span or self.fallback_span
-        _best_effort_set_attribute(effective, "gen_ai.tool.name", self._tool_name)
+        _best_effort_set_attribute(
+            effective, "gen_ai.tool.name", self._tool_name
+        )
         try:
             args = getattr(self._invocation, "tool_call_arguments", None)
             if args is not None:
-                _best_effort_set_tool_json(effective, "gen_ai.tool.call.arguments", args)
+                _best_effort_set_tool_json(
+                    effective, "gen_ai.tool.call.arguments", args
+                )
         except Exception:
             pass
         return self
@@ -442,7 +462,9 @@ class _ToolSpanScope:
         try:
             res = getattr(self._invocation, "tool_call_result", None)
             if res is not None:
-                _best_effort_set_tool_json(effective, "gen_ai.tool.call.result", res)
+                _best_effort_set_tool_json(
+                    effective, "gen_ai.tool.call.result", res
+                )
         except Exception:
             pass
         # Mark status on both spans best-effort.
@@ -458,7 +480,9 @@ class _ToolSpanScope:
             return False
 
 
-def _bind_tool_arguments(fn: Callable[..., Any], args: tuple, kwargs: Dict) -> Dict:
+def _bind_tool_arguments(
+    fn: Callable[..., Any], args: tuple, kwargs: Dict
+) -> Dict:
     """Bind positional/keyword arguments to ``fn``'s signature and return a JSON-serialisable dict.
 
     ``self`` / ``cls`` are stripped from the result.  Falls back to an error sentinel on any
@@ -509,6 +533,7 @@ def observe_tool(
     ``tool_call_arguments`` on the span; ``self`` / ``cls`` are excluded automatically.
     No-op when ``ENABLE_TRAJECTORY`` is unset or ``loongsuite-util-genai`` is not installed.
     """
+
     def decorator(fn: F) -> F:
         @functools.wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -519,19 +544,28 @@ def observe_tool(
             tool_name = name or fn.__name__
             arguments = _bind_tool_arguments(fn, args, kwargs)
 
-            inv = ExecuteToolInvocation(tool_name=tool_name, tool_call_arguments=arguments)
+            inv = ExecuteToolInvocation(
+                tool_name=tool_name, tool_call_arguments=arguments
+            )
             if provider:
                 inv.provider = provider
 
             with h.execute_tool(inv) as invocation:
                 with _ToolSpanScope(invocation, tool_name) as scope:
-                    _debug_binding_point("observe_tool_sync:entered", invocation)
-                    _debug_binding_point("observe_tool_sync:after_use_span", invocation)
+                    _debug_binding_point(
+                        "observe_tool_sync:entered", invocation
+                    )
+                    _debug_binding_point(
+                        "observe_tool_sync:after_use_span", invocation
+                    )
                     log_trace_id(f"execute_tool:{tool_name}")
                     result = fn(*args, **kwargs)
                     invocation.tool_call_result = _json_serializable(result)
                     # Prefer handler span status if present; fallback status handled by scope.
-                    if hasattr(invocation, "span") and invocation.span is not None:
+                    if (
+                        hasattr(invocation, "span")
+                        and invocation.span is not None
+                    ):
                         invocation.span.set_status(Status(StatusCode.OK))
                     return result
 
@@ -544,18 +578,27 @@ def observe_tool(
             tool_name = name or fn.__name__
             arguments = _bind_tool_arguments(fn, args, kwargs)
 
-            inv = ExecuteToolInvocation(tool_name=tool_name, tool_call_arguments=arguments)
+            inv = ExecuteToolInvocation(
+                tool_name=tool_name, tool_call_arguments=arguments
+            )
             if provider:
                 inv.provider = provider
 
             with h.execute_tool(inv) as invocation:
                 with _ToolSpanScope(invocation, tool_name) as scope:
-                    _debug_binding_point("observe_tool_async:entered", invocation)
-                    _debug_binding_point("observe_tool_async:after_use_span", invocation)
+                    _debug_binding_point(
+                        "observe_tool_async:entered", invocation
+                    )
+                    _debug_binding_point(
+                        "observe_tool_async:after_use_span", invocation
+                    )
                     log_trace_id(f"execute_tool:{tool_name}")
                     result = await fn(*args, **kwargs)
                     invocation.tool_call_result = _json_serializable(result)
-                    if hasattr(invocation, "span") and invocation.span is not None:
+                    if (
+                        hasattr(invocation, "span")
+                        and invocation.span is not None
+                    ):
                         invocation.span.set_status(Status(StatusCode.OK))
                     return result
 
@@ -625,7 +668,9 @@ def trace_tool(
         return
 
     # 1. ToolNode (LangGraph) — has .tools_by_name dict
-    if hasattr(tools, "tools_by_name") and isinstance(getattr(tools, "tools_by_name", None), Dict):
+    if hasattr(tools, "tools_by_name") and isinstance(
+        getattr(tools, "tools_by_name", None), Dict
+    ):
         for tool in tools.tools_by_name.values():
             _patch_single_tool(tool, provider)
         return
@@ -858,7 +903,9 @@ async def _run_tool_with_span_async(
         with h.execute_tool(inv) as invocation:
             with _ToolSpanScope(invocation, tool_name) as scope:
                 _debug_binding_point("trace_tool_async:entered", invocation)
-                _debug_binding_point("trace_tool_async:after_use_span", invocation)
+                _debug_binding_point(
+                    "trace_tool_async:after_use_span", invocation
+                )
                 log_trace_id(f"execute_tool:{tool_name}")
                 result = await orig_fn(input, config=config, **kwargs)  # type: ignore[misc]
                 invocation.tool_call_result = _json_serializable(result)
@@ -873,7 +920,9 @@ async def _run_tool_with_span_async(
                 _decr_outer_async_layer(trace_key)
 
 
-def _extract_tool_arguments(input: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
+def _extract_tool_arguments(
+    input: Union[str, Dict[str, Any]],
+) -> Dict[str, Any]:
     """Extract tool arguments from input (str or dict).
 
     LangChain BaseTool.invoke accepts either:

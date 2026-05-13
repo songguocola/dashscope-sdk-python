@@ -60,8 +60,9 @@ def _evaluate_exp(expression: str) -> str:
         ast.Pow: operator.pow,
         ast.USub: operator.neg,
     }
-    allowed_names = {k: getattr(math, k) for k in dir(math) if
-                     not k.startswith("__")}
+    allowed_names = {
+        k: getattr(math, k) for k in dir(math) if not k.startswith("__")
+    }
     allowed_names.update({"pi": math.pi, "e": math.e})
 
     def eval_expr(node):
@@ -84,8 +85,9 @@ def _evaluate_exp(expression: str) -> str:
             return func(*args)
         raise ValueError(f"Unsupported operation: {ast.dump(node)}")
 
-    expression = expression.replace("^", "**").replace("ร�", "*").replace("รท",
-                                                                          "/")
+    expression = (
+        expression.replace("^", "**").replace("ร�", "*").replace("รท", "/")
+    )
     parsed_expr = ast.parse(expression, mode="eval")
     result = eval_expr(parsed_expr.body)
     return str(result)
@@ -104,8 +106,9 @@ def _run_mcp_server():
     mcp.run(transport="sse")
 
 
-def _wait_for_port(port: int, host: str = "localhost",
-                   timeout: float = 30.0) -> bool:
+def _wait_for_port(
+    port: int, host: str = "localhost", timeout: float = 30.0
+) -> bool:
     start_time = time.perf_counter()
     while True:
         try:
@@ -146,7 +149,8 @@ class CalcXRolloutProcessor(AbstractRolloutProcessor):
             self.mcp_process = None
         else:
             logger.info(
-                f"Port {MCP_PORT} is free. Starting MCP Server process...")
+                f"Port {MCP_PORT} is free. Starting MCP Server process..."
+            )
             self.mcp_process = multiprocessing.Process(
                 target=_run_mcp_server, daemon=True
             )
@@ -178,8 +182,9 @@ class CalcXRolloutProcessor(AbstractRolloutProcessor):
             },
         }
 
-    async def _init_resources_async(self, max_retries: int = 5,
-                                    base_delay: float = 1.0):
+    async def _init_resources_async(
+        self, max_retries: int = 5, base_delay: float = 1.0
+    ):
         logger.info(
             "Initializing shared MCP Client and Graph for this worker instance..."
         )
@@ -195,7 +200,8 @@ class CalcXRolloutProcessor(AbstractRolloutProcessor):
                 self._shared_graph = graph
                 self._shared_mcp_client = client
                 logger.info(
-                    "Shared MCP Client successfully initialized. Tools cached.")
+                    "Shared MCP Client successfully initialized. Tools cached."
+                )
                 return
             except Exception as e:
                 last_exc = e
@@ -221,12 +227,15 @@ class CalcXRolloutProcessor(AbstractRolloutProcessor):
         except Exception as e:
             logger.error(f"Model invoke error with {model.model}: {e}")
             return {
-                "messages": [("ai", f"Error: Model invocation failed. {e}")]}
+                "messages": [("ai", f"Error: Model invocation failed. {e}")]
+            }
 
     def _should_continue(self, state: MessagesState):
         last_message = state["messages"][-1]
-        if hasattr(last_message, "tool_calls") and len(
-                last_message.tool_calls) > 0:
+        if (
+            hasattr(last_message, "tool_calls")
+            and len(last_message.tool_calls) > 0
+        ):
             return "tools"
         return END
 
@@ -234,8 +243,9 @@ class CalcXRolloutProcessor(AbstractRolloutProcessor):
         workflow = StateGraph(MessagesState)
         standard_tool_node = ToolNode(tools)
 
-        async def tool_node_with_logging(state: MessagesState,
-                                         config: RunnableConfig):
+        async def tool_node_with_logging(
+            state: MessagesState, config: RunnableConfig
+        ):
             last_message = state["messages"][-1]
             if hasattr(last_message, "tool_calls") and last_message.tool_calls:
                 for call in last_message.tool_calls:
@@ -340,8 +350,9 @@ class CalcXRolloutProcessor(AbstractRolloutProcessor):
                 },
             )
 
-            final_state = await graph.ainvoke({"messages": messages},
-                                              config=config)
+            final_state = await graph.ainvoke(
+                {"messages": messages}, config=config
+            )
             final_messages = final_state["messages"]
             output_content = str(final_messages[-1].content)
 
@@ -387,9 +398,9 @@ class CalcXRolloutProcessor(AbstractRolloutProcessor):
 
     def __del__(self):
         if (
-                hasattr(self, "mcp_process")
-                and self.mcp_process is not None
-                and self.mcp_process.is_alive()
+            hasattr(self, "mcp_process")
+            and self.mcp_process is not None
+            and self.mcp_process.is_alive()
         ):
             try:
                 self.mcp_process.terminate()
@@ -414,8 +425,12 @@ if __name__ == "__main__":
 
     rollout_input = RolloutInput(
         messages=[
-            {"role": "user",
-             "content": "6.6 minus x (3/2) times equals 5.6." + " " + input_format},
+            {
+                "role": "user",
+                "content": "6.6 minus x (3/2) times equals 5.6."
+                + " "
+                + input_format,
+            },
         ],
         ground_truth="2/3",
         model_resource=ModelResource(
@@ -428,7 +443,7 @@ if __name__ == "__main__":
             "top_p": 0.8,
             "max_tokens": 2048,
             "max_turns": 10,
-        }
+        },
     )
     print(json.dumps(rollout_input.model_dump(mode="json"), indent=4))
 
