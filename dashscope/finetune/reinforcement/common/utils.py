@@ -42,6 +42,7 @@ from dashscope.finetune.reinforcement import (
     FC_SERVER_CLASSPATH,
     FC_ZIP_EXCLUDE_PATTERNS,
     FC_OSS_FILE_SIZE_WARNING,
+    DATASETS_FILE_SIZE_WARNING,
     LOGGER_FILTER_FIELDS,
     FC_WORKERS_COUNT,
 )
@@ -614,6 +615,17 @@ async def to_bailian_data(files: List[FileSpec]) -> List[str]:
                 logger.error(f"Empty file: {file_path}")
                 continue
 
+            file_size = os.path.getsize(file_path)
+            size_mb = file_size / (1024 * 1024)
+            if file_size > DATASETS_FILE_SIZE_WARNING:
+                raise InputError(
+                    f"File too large: {file_path} ({size_mb:.1f}MB), "
+                    f"max allowed "
+                    f"{DATASETS_FILE_SIZE_WARNING / (1024 * 1024):.0f}MB. "
+                    f"Adjust via env var DATASETS_FILE_SIZE_WARNING.",
+                    error_code=4035,
+                )
+
             # Add file to form data
             with open(file_path, "rb") as f:
                 form_data.add_field(
@@ -643,6 +655,7 @@ async def to_bailian_data(files: List[FileSpec]) -> List[str]:
             headers=headers,
             data=form_data,
             timeout=BAILIAN_FILE_TIMEOUT,
+            retry_times=1,
         )
 
         # Handle errors

@@ -51,6 +51,13 @@ class RuntimeErrorWithCode(RuntimeError):
         self.error_code = error_code
         self.message = message
 
+    @property
+    def root_cause(self) -> Exception:
+        root = self
+        while root.__cause__:
+            root = root.__cause__
+        return root
+
     def __str__(self):
         return f"[{self.error_code}] {self.message}"
 
@@ -63,6 +70,13 @@ class ValueErrorWithCode(ValueError):
         super().__init__(message)
         self.error_code = error_code
         self.message = message
+
+    @property
+    def root_cause(self) -> Exception:
+        root = self
+        while root.__cause__:
+            root = root.__cause__
+        return root
 
     def __str__(self):
         return f"[{self.error_code}] {self.message}"

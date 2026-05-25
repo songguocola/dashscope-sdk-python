@@ -20,6 +20,8 @@ export LOG_LEVEL="info"
 
 ### 2.2 Configuring Dependencies File
 
+> Note: The `requirements.txt` is used for the remote Function Compute environment (Python >= 3.10). For local debugging, please ensure you use Python 3.10+. The `dashscope` SDK itself supports Python 3.8+.
+
 Create a `requirements.txt` file with the following core dependencies:
 
 ```requirements.txt
@@ -120,6 +122,9 @@ dashscope rl --help  # View full command help
 >
 > Note: The total size limit for packaging and uploading all files under the project's `workspace/` directory is 200M;
 > this can be modified via the environment variable `FC_OSS_FILE_SIZE_WARNING`
+>
+> Note: The maximum size for a single dataset file (e.g., training/validation JSONL) is 1G by default;
+> this can be modified via the environment variable `DATASETS_FILE_SIZE_WARNING`
 >
 > Note: If you want to use a locally built dashscope whl package (generated via the scripts/build.sh script), you can set:
 > export FC_PYPI_LIB="dashscope-1.25.19-py3-none-any.whl"

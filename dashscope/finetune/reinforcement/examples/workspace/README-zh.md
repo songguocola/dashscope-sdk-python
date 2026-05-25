@@ -20,6 +20,8 @@ export LOG_LEVEL="info"
 
 ### 2.2 配置依赖文件
 
+> 注：`requirements.txt` 用于远端函数计算环境（Python >= 3.10）。本地调试时请确保使用 Python 3.10+。`dashscope` SDK 本身支持 Python 3.8+。
+
 创建`requirements.txt`文件，包含以下核心依赖：
 
 ```requirements.txt
@@ -115,6 +117,8 @@ dashscope rl --help  # 查看完整命令帮助
 > 注：项目`workspace/`目录下，设置上传排除的子目录和文件，参考环境变量：FC_ZIP_EXCLUDE_PATTERNS
 >
 > 注：项目`workspace/`目录下的所有文件打包上传限制大小：200M；可以通过环境变量FC_OSS_FILE_SIZE_WARNING修改
+>
+> 注：单个数据集文件（如训练/验证 JSONL）默认大小限制为 1G；可以通过环境变量 `DATASETS_FILE_SIZE_WARNING` 修改
 >
 > 注：如果要使用本地build的dashscope whl包（通过scripts/build.sh脚本生成），可以设置：
 > export FC_PYPI_LIB="dashscope-1.25.19-py3-none-any.whl"，

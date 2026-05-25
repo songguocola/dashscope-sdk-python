@@ -122,6 +122,14 @@ FC_OSS_FILE_SIZE_WARNING = get_int_env(
 )  # 200M
 
 # --------------------------
+# Datasets Configuration
+# --------------------------
+DATASETS_FILE_SIZE_WARNING = get_int_env(
+    "DATASETS_FILE_SIZE_WARNING",
+    1024 * 1024 * 1024,
+)  # 1G
+
+# --------------------------
 # Tuning Configuration
 # --------------------------
 TUNING_MODE_NAME = "reinforcement"

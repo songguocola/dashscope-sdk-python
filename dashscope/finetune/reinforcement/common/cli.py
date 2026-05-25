@@ -6,6 +6,8 @@ Production-grade command-line interface built with Typer, Rich, and AsyncIO.
 """
 import asyncio
 import json
+import logging
+import traceback as tb_module
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -32,6 +34,17 @@ app = typer.Typer(
 )
 console = Console()
 err_console = Console(stderr=True)
+
+_cli_verbose = False
+
+
+def _apply_verbose(verbose: bool):
+    global _cli_verbose
+    _cli_verbose = verbose
+    if not verbose:
+        from dashscope.finetune.reinforcement.common.log import logger
+
+        logger.setLevel(logging.WARNING)
 
 
 def _root_cause(e: Exception) -> Exception:
@@ -404,7 +417,7 @@ def run(
         False,
         "--verbose",
         "-v",
-        help="Enable detailed error traces",
+        help="Enable verbose logging and error traces",
     ),
 ):
     """
@@ -420,6 +433,8 @@ def run(
     - reward_classpaths (at least one)
     - training_files (at least one)
     """
+    _apply_verbose(verbose)
+
     # Prepare workflow parameters
     run_kwargs = {
         "job_name": job_name,
@@ -479,8 +494,16 @@ def run(
             else "Workflow execution failed"
         )
         err_console.print(f"[red]❌ {label}: {root}[/red]")
-        if verbose:
-            err_console.print_exception()
+        if _cli_verbose:
+            err_console.print(
+                "".join(
+                    tb_module.format_exception(
+                        type(root),
+                        root,
+                        root.__traceback__,
+                    ),
+                ),
+            )
         raise typer.Exit(1)
 
 
