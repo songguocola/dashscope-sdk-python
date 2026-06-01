@@ -98,6 +98,12 @@ def _translate_legacy_args(argv):
         # Translate parameter names
         if arg in _PARAM_MAP:
             new_argv.append(_PARAM_MAP[arg])
+        elif arg.startswith("--") and "=" in arg:
+            opt, val = arg.split("=", 1)
+            if opt in _PARAM_MAP:
+                new_argv.append(f"{_PARAM_MAP[opt]}={val}")
+            else:
+                new_argv.append(arg)
         else:
             new_argv.append(arg)
 
