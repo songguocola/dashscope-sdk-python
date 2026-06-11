@@ -48,6 +48,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from dashscope.finetune.reinforcement.common.log import logger
+from dashscope.finetune.reinforcement.common.utils import (
+    get_fc_request_id,
+    get_business_summary,
+)
 from dashscope.finetune.reinforcement.common.model_types import (
     FunctionType as FuncType,
 )
@@ -456,9 +460,11 @@ async def handle_endpoint(request: Request) -> JSONResponse:
             except asyncio.CancelledError:
                 pass
             cancelled = True
+            fc_request_id = get_fc_request_id(request)
             logger.warning(
                 "[Server] Client disconnected during processing, "
-                "task cancelled.",
+                "task cancelled. x-fc-request-id: %s",
+                fc_request_id,
             )
             return JSONResponse(
                 status_code=499,
@@ -503,10 +509,14 @@ async def handle_endpoint(request: Request) -> JSONResponse:
 
         # Log request metrics
         elapsed = round(time.time() - start_time, 4)
+        fc_req_id = get_fc_request_id(request)
+        biz_summary = get_business_summary(processor_input)
+        biz_part = f" | {biz_summary}" if biz_summary else ""
         logger.info(
             f"[Server] /api/v1 | func_type={func_type.value} | "
+            f"fc_request_id={fc_req_id} | "
             f"success={success} | cancelled={cancelled} | "
-            f"elapsed={elapsed}s",
+            f"elapsed={elapsed}s{biz_part}",
         )
 
         # Best-effort force flush based on platform/internal env config
