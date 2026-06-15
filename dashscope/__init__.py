@@ -1,8 +1,18 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) Alibaba, Inc. and its affiliates.
+# pylint: disable=wrong-import-position
 
 import logging
+import warnings
 from logging import NullHandler
+
+# Suppress urllib3 NotOpenSSLWarning on systems with LibreSSL before any SDK
+# submodule imports urllib3.
+warnings.filterwarnings(
+    "ignore",
+    message=".*urllib3.*only supports OpenSSL.*",
+    category=Warning,
+)
 
 from dashscope.aigc.code_generation import CodeGeneration
 from dashscope.aigc.conversation import Conversation, History, HistoryItem
