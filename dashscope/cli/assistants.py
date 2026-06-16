@@ -52,25 +52,57 @@ def _parse_json_array(value: Optional[str], option_name: str):
 def create(
     model: str = typer.Option(..., "-m", "--model", help="The model to use"),
     name: Optional[str] = typer.Option(None, "--name", help="Assistant name"),
-    description: Optional[str] = typer.Option(None, "--description", help="Assistant description"),
-    instructions: Optional[str] = typer.Option(None, "--instructions", help="Assistant instructions"),
-    tools: Optional[str] = typer.Option(None, "--tools", help="Tools as a JSON array string"),
+    description: Optional[str] = typer.Option(
+        None,
+        "--description",
+        help="Assistant description",
+    ),
+    instructions: Optional[str] = typer.Option(
+        None,
+        "--instructions",
+        help="Assistant instructions",
+    ),
+    tools: Optional[str] = typer.Option(
+        None,
+        "--tools",
+        help="Tools as a JSON array string",
+    ),
     file_ids: Optional[List[str]] = typer.Option(
         None,
         "--file-id",
         help="File id, can be used multiple times",
     ),
-    metadata: Optional[str] = typer.Option(None, "--metadata", help="Metadata as a JSON object string"),
+    metadata: Optional[str] = typer.Option(
+        None,
+        "--metadata",
+        help="Metadata as a JSON object string",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
         "--workspace",
         help="The DashScope workspace id",
     ),
-    top_p: Optional[float] = typer.Option(None, "--top-p", help="Top-p sampling"),
-    top_k: Optional[int] = typer.Option(None, "--top-k", help="Top-k sampling"),
-    temperature: Optional[float] = typer.Option(None, "--temperature", help="Sampling temperature"),
-    max_tokens: Optional[int] = typer.Option(None, "--max-tokens", help="Maximum output tokens"),
+    top_p: Optional[float] = typer.Option(
+        None,
+        "--top-p",
+        help="Top-p sampling",
+    ),
+    top_k: Optional[int] = typer.Option(
+        None,
+        "--top-k",
+        help="Top-k sampling",
+    ),
+    temperature: Optional[float] = typer.Option(
+        None,
+        "--temperature",
+        help="Sampling temperature",
+    ),
+    max_tokens: Optional[int] = typer.Option(
+        None,
+        "--max-tokens",
+        help="Maximum output tokens",
+    ),
 ):
     """Create an assistant."""
     response = dashscope.Assistants.create(
@@ -88,17 +120,37 @@ def create(
         max_tokens=max_tokens,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
 @app.command("list")
 @handle_sdk_error("List assistants failed")
 def list_assistants(
-    limit: Optional[int] = typer.Option(None, "--limit", help="Maximum number of assistants"),
-    order: Optional[str] = typer.Option(None, "--order", help="Sort order by created_at"),
-    after: Optional[str] = typer.Option(None, "--after", help="Cursor after assistant id"),
-    before: Optional[str] = typer.Option(None, "--before", help="Cursor before assistant id"),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        help="Maximum number of assistants",
+    ),
+    order: Optional[str] = typer.Option(
+        None,
+        "--order",
+        help="Sort order by created_at",
+    ),
+    after: Optional[str] = typer.Option(
+        None,
+        "--after",
+        help="Cursor after assistant id",
+    ),
+    before: Optional[str] = typer.Option(
+        None,
+        "--before",
+        help="Cursor before assistant id",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
@@ -115,7 +167,11 @@ def list_assistants(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -136,7 +192,11 @@ def get_assistant(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -144,27 +204,64 @@ def get_assistant(
 @handle_sdk_error("Update assistant failed")
 def update_assistant(
     assistant_id: str = typer.Argument(..., help="The assistant id"),
-    model: Optional[str] = typer.Option(None, "-m", "--model", help="The model to use"),
+    model: Optional[str] = typer.Option(
+        None,
+        "-m",
+        "--model",
+        help="The model to use",
+    ),
     name: Optional[str] = typer.Option(None, "--name", help="Assistant name"),
-    description: Optional[str] = typer.Option(None, "--description", help="Assistant description"),
-    instructions: Optional[str] = typer.Option(None, "--instructions", help="Assistant instructions"),
-    tools: Optional[str] = typer.Option(None, "--tools", help="Tools as a JSON array string"),
+    description: Optional[str] = typer.Option(
+        None,
+        "--description",
+        help="Assistant description",
+    ),
+    instructions: Optional[str] = typer.Option(
+        None,
+        "--instructions",
+        help="Assistant instructions",
+    ),
+    tools: Optional[str] = typer.Option(
+        None,
+        "--tools",
+        help="Tools as a JSON array string",
+    ),
     file_ids: Optional[List[str]] = typer.Option(
         None,
         "--file-id",
         help="File id, can be used multiple times",
     ),
-    metadata: Optional[str] = typer.Option(None, "--metadata", help="Metadata as a JSON object string"),
+    metadata: Optional[str] = typer.Option(
+        None,
+        "--metadata",
+        help="Metadata as a JSON object string",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
         "--workspace",
         help="The DashScope workspace id",
     ),
-    top_p: Optional[float] = typer.Option(None, "--top-p", help="Top-p sampling"),
-    top_k: Optional[int] = typer.Option(None, "--top-k", help="Top-k sampling"),
-    temperature: Optional[float] = typer.Option(None, "--temperature", help="Sampling temperature"),
-    max_tokens: Optional[int] = typer.Option(None, "--max-tokens", help="Maximum output tokens"),
+    top_p: Optional[float] = typer.Option(
+        None,
+        "--top-p",
+        help="Top-p sampling",
+    ),
+    top_k: Optional[int] = typer.Option(
+        None,
+        "--top-k",
+        help="Top-k sampling",
+    ),
+    temperature: Optional[float] = typer.Option(
+        None,
+        "--temperature",
+        help="Sampling temperature",
+    ),
+    max_tokens: Optional[int] = typer.Option(
+        None,
+        "--max-tokens",
+        help="Maximum output tokens",
+    ),
 ):
     """Update an assistant."""
     response = dashscope.Assistants.update(
@@ -183,7 +280,11 @@ def update_assistant(
         max_tokens=max_tokens,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -204,5 +305,9 @@ def delete_assistant(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )

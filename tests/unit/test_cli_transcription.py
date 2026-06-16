@@ -21,7 +21,9 @@ class TestCliTranscription:
                     "task_status": "SUCCEEDED",
                     "results": [
                         {
-                            "transcription_url": "https://example.com/result.json",
+                            "transcription_url": (
+                                "https://example.com/result.json"
+                            ),
                         },
                     ],
                 },

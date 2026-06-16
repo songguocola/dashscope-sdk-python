@@ -31,7 +31,11 @@ class TestCliApplication:
                 },
             )
 
-        monkeypatch.setattr(application.dashscope.Application, "call", mock_call)
+        monkeypatch.setattr(
+            application.dashscope.Application,
+            "call",
+            mock_call,
+        )
 
         result = CliRunner().invoke(
             application.app,

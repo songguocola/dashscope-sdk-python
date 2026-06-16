@@ -31,7 +31,12 @@ def callback(ctx: typer.Context):
 @handle_sdk_error("Code generation request failed")
 def create(
     model: str = typer.Option(..., "-m", "--model", help="The model to call"),
-    scene: str = typer.Option(..., "-s", "--scene", help="Code generation scene"),
+    scene: str = typer.Option(
+        ...,
+        "-s",
+        "--scene",
+        help="Code generation scene",
+    ),
     content: str = typer.Option(
         ...,
         "-c",

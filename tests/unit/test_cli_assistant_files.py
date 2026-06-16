@@ -151,7 +151,7 @@ class TestCliAssistantFiles:
                         object="assistant.file",
                         created_at=111111,
                         assistant_id=assistant_id,
-                    )
+                    ),
                 ],
             )
 

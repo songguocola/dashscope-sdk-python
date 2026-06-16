@@ -39,7 +39,12 @@ def create(
         "--workspace",
         help="The DashScope workspace id",
     ),
-    n: Optional[int] = typer.Option(None, "-n", "--n", help="Number of images"),
+    n: Optional[int] = typer.Option(
+        None,
+        "-n",
+        "--n",
+        help="Number of images",
+    ),
     size: Optional[str] = typer.Option(
         None,
         "--size",

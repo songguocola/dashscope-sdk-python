@@ -37,7 +37,10 @@ def create(
     images: Optional[List[str]] = typer.Option(
         None,
         "--image",
-        help="Reference image URL or local file path, can be used multiple times",
+        help=(
+            "Reference image URL or local file path, "
+            "can be used multiple times"
+        ),
     ),
     workspace: Optional[str] = typer.Option(
         None,
@@ -46,10 +49,15 @@ def create(
         help="The DashScope workspace id",
     ),
     size: Optional[str] = typer.Option(
-        None, "--size", help="Output image size"
+        None,
+        "--size",
+        help="Output image size",
     ),
     n: Optional[int] = typer.Option(
-        None, "-n", "--n", help="Number of images"
+        None,
+        "-n",
+        "--n",
+        help="Number of images",
     ),
     max_images: Optional[int] = typer.Option(
         None,

@@ -83,7 +83,7 @@ class TestCliMessages:
                         object="thread.message",
                         thread_id=thread_id,
                         role="user",
-                    )
+                    ),
                 ],
             )
 
@@ -228,7 +228,7 @@ class TestCliMessages:
                         id="file-1234",
                         object="thread.message.file",
                         message_id=message_id,
-                    )
+                    ),
                 ],
             )
 

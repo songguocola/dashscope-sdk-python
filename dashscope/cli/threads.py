@@ -74,7 +74,11 @@ def create(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -101,7 +105,11 @@ def update_thread(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -122,7 +130,11 @@ def get_thread(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -143,23 +155,48 @@ def delete_thread(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
 @app.command("create-and-run")
 @handle_sdk_error("Create thread and run failed")
 def create_and_run(
-    assistant_id: str = typer.Option(..., "--assistant-id", help="The assistant id"),
-    thread: Optional[str] = typer.Option(None, "--thread", help="Thread as a JSON object string"),
-    model: Optional[str] = typer.Option(None, "-m", "--model", help="The model to use"),
-    instructions: Optional[str] = typer.Option(None, "--instructions", help="Run instructions"),
+    assistant_id: str = typer.Option(
+        ...,
+        "--assistant-id",
+        help="The assistant id",
+    ),
+    thread: Optional[str] = typer.Option(
+        None,
+        "--thread",
+        help="Thread as a JSON object string",
+    ),
+    model: Optional[str] = typer.Option(
+        None,
+        "-m",
+        "--model",
+        help="The model to use",
+    ),
+    instructions: Optional[str] = typer.Option(
+        None,
+        "--instructions",
+        help="Run instructions",
+    ),
     additional_instructions: Optional[str] = typer.Option(
         None,
         "--additional-instructions",
         help="Additional run instructions",
     ),
-    tools: Optional[str] = typer.Option(None, "--tools", help="Tools as a JSON array string"),
+    tools: Optional[str] = typer.Option(
+        None,
+        "--tools",
+        help="Tools as a JSON array string",
+    ),
     metadata: Optional[str] = typer.Option(
         None,
         "--metadata",
@@ -184,5 +221,9 @@ def create_and_run(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )

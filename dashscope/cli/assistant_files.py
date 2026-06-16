@@ -42,7 +42,11 @@ def create(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -65,7 +69,11 @@ def get_file(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -88,7 +96,11 @@ def delete_file(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -96,10 +108,26 @@ def delete_file(
 @handle_sdk_error("List assistant files failed")
 def list_files(
     assistant_id: str = typer.Argument(..., help="The assistant id"),
-    limit: Optional[int] = typer.Option(None, "--limit", help="Maximum number of files"),
-    order: Optional[str] = typer.Option(None, "--order", help="Sort order by created_at"),
-    after: Optional[str] = typer.Option(None, "--after", help="Cursor after file id"),
-    before: Optional[str] = typer.Option(None, "--before", help="Cursor before file id"),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        help="Maximum number of files",
+    ),
+    order: Optional[str] = typer.Option(
+        None,
+        "--order",
+        help="Sort order by created_at",
+    ),
+    after: Optional[str] = typer.Option(
+        None,
+        "--after",
+        help="Cursor after file id",
+    ),
+    before: Optional[str] = typer.Option(
+        None,
+        "--before",
+        help="Cursor before file id",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
@@ -117,5 +145,9 @@ def list_files(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )

@@ -16,9 +16,12 @@ from dashscope.cli import main as cli_main
 from dashscope.common.error import AuthenticationError
 
 
+# pylint: disable=too-many-public-methods
 class TestCliMain:
     def test_main_prints_authentication_error_without_traceback(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         def mock_list(**kwargs):
             raise AuthenticationError("No api key provided.")
@@ -102,10 +105,14 @@ class TestCliMain:
         assert "training-files" in result.output
 
     def test_missing_global_api_key_value_does_not_consume_command(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         monkeypatch.setattr(
-            sys, "argv", ["dashscope", "--api-key", "models", "list"]
+            sys,
+            "argv",
+            ["dashscope", "--api-key", "models", "list"],
         )
 
         with pytest.raises(SystemExit) as exception_info:
@@ -119,7 +126,9 @@ class TestCliMain:
         assert "No such command 'list'" not in combined_output
 
     def test_missing_global_api_key_value_does_not_consume_option(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         monkeypatch.setattr(sys, "argv", ["dashscope", "--api-key", "--help"])
 
@@ -134,11 +143,15 @@ class TestCliMain:
         assert "Usage:" not in combined_output
 
     def test_empty_global_api_key_value_exits_before_request(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         monkeypatch.setattr(dashscope, "api_key", "existing-key")
         monkeypatch.setattr(
-            sys, "argv", ["dashscope", "--api-key=", "models", "list"]
+            sys,
+            "argv",
+            ["dashscope", "--api-key=", "models", "list"],
         )
 
         with pytest.raises(SystemExit) as exception_info:
@@ -161,7 +174,8 @@ class TestCliMain:
             return SimpleNamespace(status_code=200, output={"models": []})
 
         monkeypatch.setattr(
-            "dashscope.cli.models.dashscope.Models.list", mock_list
+            "dashscope.cli.models.dashscope.Models.list",
+            mock_list,
         )
         monkeypatch.setattr(dashscope, "api_key", None)
         monkeypatch.setattr(
@@ -181,7 +195,8 @@ class TestCliMain:
         }
 
     def test_global_api_key_equals_after_command_is_supported(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         captured_request = {}
 
@@ -191,7 +206,8 @@ class TestCliMain:
             return SimpleNamespace(status_code=200, output={"models": []})
 
         monkeypatch.setattr(
-            "dashscope.cli.models.dashscope.Models.list", mock_list
+            "dashscope.cli.models.dashscope.Models.list",
+            mock_list,
         )
         monkeypatch.setattr(dashscope, "api_key", None)
         monkeypatch.setattr(
@@ -217,7 +233,8 @@ class TestCliMain:
         assert "register_functions" in result.output
 
     def test_subcommand_api_key_option_is_not_consumed_by_global_parser(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         captured_request = {}
 
@@ -229,7 +246,8 @@ class TestCliMain:
             return "oss://uploaded", None
 
         monkeypatch.setattr(
-            "dashscope.cli.oss.os.path.exists", lambda path: True
+            "dashscope.cli.oss.os.path.exists",
+            lambda path: True,
         )
         monkeypatch.setattr("dashscope.cli.oss.OssUtils.upload", mock_upload)
         monkeypatch.setattr(dashscope, "api_key", "global-key")
@@ -261,7 +279,9 @@ class TestCliMain:
         }
 
     def test_subcommand_api_key_missing_value_is_handled_by_subcommand_parser(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         monkeypatch.setattr(
             sys,
@@ -288,7 +308,9 @@ class TestCliMain:
         assert "requires an argument" in combined_output
 
     def test_legacy_api_key_missing_value_exits_before_request(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         monkeypatch.setattr(
             sys,
@@ -314,7 +336,8 @@ class TestCliMain:
         assert "requires an argument" in combined_output
 
     def test_legacy_api_key_option_is_extracted_after_translation(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         monkeypatch.setattr(dashscope, "api_key", None)
         captured_request = {}
@@ -376,7 +399,8 @@ class TestCliMain:
             return SimpleNamespace(status_code=200, output={"deployments": []})
 
         monkeypatch.setattr(
-            "dashscope.cli.files.dashscope.Files.list", mock_files_list
+            "dashscope.cli.files.dashscope.Files.list",
+            mock_files_list,
         )
         monkeypatch.setattr(
             "dashscope.cli.fine_tunes.dashscope.FineTunes.list",
@@ -406,7 +430,8 @@ class TestCliMain:
             assert captured_requests[request_key]["page_size"] == 20
 
     def test_legacy_list_page_size_equals_maps_to_size_option(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         captured_request = {}
 
@@ -415,10 +440,13 @@ class TestCliMain:
             return SimpleNamespace(status_code=200, output={})
 
         monkeypatch.setattr(
-            "dashscope.cli.files.dashscope.Files.list", mock_files_list
+            "dashscope.cli.files.dashscope.Files.list",
+            mock_files_list,
         )
         monkeypatch.setattr(
-            sys, "argv", ["dashscope", "files.list", "--page_size=30"]
+            sys,
+            "argv",
+            ["dashscope", "files.list", "--page_size=30"],
         )
 
         with pytest.raises(SystemExit) as exception_info:
@@ -428,10 +456,13 @@ class TestCliMain:
         assert captured_request["page_size"] == 30
 
     def test_files_upload_missing_file_exits_without_traceback(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         monkeypatch.setattr(
-            "dashscope.cli.files.os.path.exists", lambda path: False
+            "dashscope.cli.files.os.path.exists",
+            lambda path: False,
         )
         monkeypatch.setattr(
             sys,
@@ -450,16 +481,20 @@ class TestCliMain:
         assert "Traceback" not in combined_output
 
     def test_files_upload_sdk_exception_exits_without_traceback(
-        self, monkeypatch, capsys
+        self,
+        monkeypatch,
+        capsys,
     ):
         def mock_upload(**kwargs):
             raise RuntimeError("upload failed")
 
         monkeypatch.setattr(
-            "dashscope.cli.files.os.path.exists", lambda path: True
+            "dashscope.cli.files.os.path.exists",
+            lambda path: True,
         )
         monkeypatch.setattr(
-            "dashscope.cli.files.dashscope.Files.upload", mock_upload
+            "dashscope.cli.files.dashscope.Files.upload",
+            mock_upload,
         )
         monkeypatch.setattr(
             sys,
@@ -537,13 +572,14 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_generation_stream_exception_is_printed_without_traceback(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         class FailingStream:
             def __iter__(self):
                 raise RuntimeError("stream failed")
 
-        def mock_call(*args, **kwargs):
+        def mock_call(*_args, **_kwargs):
             return FailingStream()
 
         monkeypatch.setattr(
@@ -569,13 +605,15 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_models_sdk_exception_is_printed_without_traceback(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         def mock_list(**kwargs):
             raise RuntimeError("models failed")
 
         monkeypatch.setattr(
-            "dashscope.cli.models.dashscope.Models.list", mock_list
+            "dashscope.cli.models.dashscope.Models.list",
+            mock_list,
         )
 
         result = CliRunner().invoke(cli_app, ["models", "list"])
@@ -585,7 +623,8 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_deployments_sdk_exception_is_printed_without_traceback(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         def mock_call(**kwargs):
             raise RuntimeError("deployment failed")
@@ -605,9 +644,10 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_application_response_without_usage_is_supported(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
-        def mock_call(**kwargs):
+        def mock_call(**_kwargs):
             return SimpleNamespace(status_code=200, output={"text": "ok"})
 
         monkeypatch.setattr(
@@ -625,7 +665,7 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_generation_response_without_usage_is_supported(self, monkeypatch):
-        def mock_call(*args, **kwargs):
+        def mock_call(*_args, **_kwargs):
             return SimpleNamespace(status_code=200, output={"text": "ok"})
 
         monkeypatch.setattr(
@@ -643,11 +683,12 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_generation_stream_response_without_usage_is_supported(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
-        def mock_call(*args, **kwargs):
+        def mock_call(*_args, **_kwargs):
             return iter(
-                [SimpleNamespace(status_code=200, output={"text": "ok"})]
+                [SimpleNamespace(status_code=200, output={"text": "ok"})],
             )
 
         monkeypatch.setattr(
@@ -673,7 +714,8 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_image_generation_sdk_exception_is_printed_without_traceback(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
         def mock_call(**kwargs):
             raise RuntimeError("image failed")
@@ -700,13 +742,15 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_multimodal_conversation_response_without_usage_is_supported(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
-        def mock_call(**kwargs):
+        def mock_call(**_kwargs):
             return SimpleNamespace(status_code=200, output={"text": "ok"})
 
         monkeypatch.setattr(
-            "dashscope.cli.multimodal_conversation.dashscope.MultiModalConversation.call",
+            "dashscope.cli.multimodal_conversation.dashscope."
+            "MultiModalConversation.call",
             mock_call,
         )
 
@@ -727,13 +771,15 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_multimodal_embedding_response_without_usage_is_supported(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
-        def mock_call(**kwargs):
+        def mock_call(**_kwargs):
             return SimpleNamespace(status_code=200, output={"embeddings": []})
 
         monkeypatch.setattr(
-            "dashscope.cli.multimodal_embedding.dashscope.MultiModalEmbedding.call",
+            "dashscope.cli.multimodal_embedding.dashscope."
+            "MultiModalEmbedding.call",
             mock_call,
         )
 
@@ -754,13 +800,15 @@ class TestCliMain:
         assert "Traceback" not in result.output
 
     def test_multimodal_embedding_sdk_exception_is_printed_without_traceback(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ):
-        def mock_call(**kwargs):
+        def mock_call(**_kwargs):
             raise RuntimeError("embedding failed")
 
         monkeypatch.setattr(
-            "dashscope.cli.multimodal_embedding.dashscope.MultiModalEmbedding.call",
+            "dashscope.cli.multimodal_embedding.dashscope."
+            "MultiModalEmbedding.call",
             mock_call,
         )
 

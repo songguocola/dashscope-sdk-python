@@ -32,10 +32,26 @@ def list_steps(
         "--thread-id",
         help="The thread id",
     ),
-    limit: Optional[int] = typer.Option(None, "--limit", help="Maximum number of steps"),
-    order: Optional[str] = typer.Option(None, "--order", help="Sort order by created_at"),
-    after: Optional[str] = typer.Option(None, "--after", help="Cursor after step id"),
-    before: Optional[str] = typer.Option(None, "--before", help="Cursor before step id"),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        help="Maximum number of steps",
+    ),
+    order: Optional[str] = typer.Option(
+        None,
+        "--order",
+        help="Sort order by created_at",
+    ),
+    after: Optional[str] = typer.Option(
+        None,
+        "--after",
+        help="Cursor after step id",
+    ),
+    before: Optional[str] = typer.Option(
+        None,
+        "--before",
+        help="Cursor before step id",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
@@ -54,7 +70,11 @@ def list_steps(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -87,5 +107,9 @@ def get_step(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )

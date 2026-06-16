@@ -27,13 +27,22 @@ def callback(ctx: typer.Context):
 @handle_sdk_error("Video synthesis request failed")
 def create(
     model: str = typer.Option(..., "-m", "--model", help="The model to call"),
-    prompt: Optional[str] = typer.Option(None, "-p", "--prompt", help="Input prompt"),
+    prompt: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--prompt",
+        help="Input prompt",
+    ),
     negative_prompt: Optional[str] = typer.Option(
         None,
         "--negative-prompt",
         help="Negative prompt",
     ),
-    img_url: Optional[str] = typer.Option(None, "--img-url", help="Input image URL"),
+    img_url: Optional[str] = typer.Option(
+        None,
+        "--img-url",
+        help="Input image URL",
+    ),
     first_frame_url: Optional[str] = typer.Option(
         None,
         "--first-frame-url",
@@ -50,8 +59,16 @@ def create(
         "--workspace",
         help="The DashScope workspace id",
     ),
-    size: Optional[str] = typer.Option(None, "--size", help="Output video size"),
-    duration: Optional[int] = typer.Option(None, "--duration", help="Video duration"),
+    size: Optional[str] = typer.Option(
+        None,
+        "--size",
+        help="Output video size",
+    ),
+    duration: Optional[int] = typer.Option(
+        None,
+        "--duration",
+        help="Video duration",
+    ),
     seed: Optional[int] = typer.Option(None, "--seed", help="Random seed"),
     prompt_extend: Optional[bool] = typer.Option(
         None,
@@ -63,7 +80,11 @@ def create(
         "--watermark/--no-watermark",
         help="Whether to add watermark",
     ),
-    resolution: Optional[str] = typer.Option(None, "--resolution", help="Output resolution"),
+    resolution: Optional[str] = typer.Option(
+        None,
+        "--resolution",
+        help="Output resolution",
+    ),
     ratio: Optional[str] = typer.Option(None, "--ratio", help="Aspect ratio"),
 ):
     """Call video synthesis API."""
@@ -143,11 +164,31 @@ def cancel(
 @app.command("list")
 @handle_sdk_error("List video synthesis tasks failed")
 def list_tasks(
-    start_time: Optional[str] = typer.Option(None, "--start-time", help="Task start time"),
-    end_time: Optional[str] = typer.Option(None, "--end-time", help="Task end time"),
-    model_name: Optional[str] = typer.Option(None, "--model-name", help="Model name"),
-    api_key_id: Optional[str] = typer.Option(None, "--api-key-id", help="API key id"),
-    region: Optional[str] = typer.Option(None, "--region", help="Service region"),
+    start_time: Optional[str] = typer.Option(
+        None,
+        "--start-time",
+        help="Task start time",
+    ),
+    end_time: Optional[str] = typer.Option(
+        None,
+        "--end-time",
+        help="Task end time",
+    ),
+    model_name: Optional[str] = typer.Option(
+        None,
+        "--model-name",
+        help="Model name",
+    ),
+    api_key_id: Optional[str] = typer.Option(
+        None,
+        "--api-key-id",
+        help="API key id",
+    ),
+    region: Optional[str] = typer.Option(
+        None,
+        "--region",
+        help="Service region",
+    ),
     status: Optional[str] = typer.Option(None, "--status", help="Task status"),
     page: int = typer.Option(1, "-p", "--page", help="Page number"),
     size: int = typer.Option(10, "-s", "--size", help="Page size"),

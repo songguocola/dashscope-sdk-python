@@ -34,16 +34,32 @@ def create(
         "--audio-format",
         help="Audio format, such as wav, pcm or mp3",
     ),
-    sample_rate: int = typer.Option(24000, "--sample-rate", help="Audio sample rate"),
+    sample_rate: int = typer.Option(
+        24000,
+        "--sample-rate",
+        help="Audio sample rate",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
         "--workspace",
         help="The DashScope workspace id",
     ),
-    url: Optional[str] = typer.Option(None, "--url", help="Custom HTTP base URL"),
-    volume: Optional[int] = typer.Option(None, "--volume", help="Volume value"),
-    rate: Optional[int] = typer.Option(None, "--rate", help="Speech rate value"),
+    url: Optional[str] = typer.Option(
+        None,
+        "--url",
+        help="Custom HTTP base URL",
+    ),
+    volume: Optional[int] = typer.Option(
+        None,
+        "--volume",
+        help="Volume value",
+    ),
+    rate: Optional[int] = typer.Option(
+        None,
+        "--rate",
+        help="Speech rate value",
+    ),
     pitch: Optional[int] = typer.Option(None, "--pitch", help="Pitch value"),
 ):
     """Call HTTP speech synthesis API."""

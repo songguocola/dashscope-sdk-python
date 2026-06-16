@@ -24,7 +24,11 @@ class TestCliTokenization:
                 usage={"input_tokens": 2},
             )
 
-        monkeypatch.setattr(tokenization.dashscope.Tokenization, "call", mock_call)
+        monkeypatch.setattr(
+            tokenization.dashscope.Tokenization,
+            "call",
+            mock_call,
+        )
 
         result = CliRunner().invoke(
             tokenization.app,

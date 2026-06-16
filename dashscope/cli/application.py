@@ -26,7 +26,12 @@ def callback(ctx: typer.Context):
 @app.command("create")
 @handle_sdk_error("Application request failed")
 def create(
-    app_id: str = typer.Option(..., "-a", "--app-id", help="The application id"),
+    app_id: str = typer.Option(
+        ...,
+        "-a",
+        "--app-id",
+        help="The application id",
+    ),
     prompt: str = typer.Option(..., "-p", "--prompt", help="Input prompt"),
     workspace: Optional[str] = typer.Option(
         None,

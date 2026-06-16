@@ -32,7 +32,11 @@ def create(
         "--file-url",
         help="Audio file URL, can be used multiple times",
     ),
-    phrase_id: Optional[str] = typer.Option(None, "--phrase-id", help="Phrase id"),
+    phrase_id: Optional[str] = typer.Option(
+        None,
+        "--phrase-id",
+        help="Phrase id",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
@@ -54,7 +58,11 @@ def create(
         "--diarization-enabled",
         help="Whether to enable speaker diarization",
     ),
-    speaker_count: Optional[int] = typer.Option(None, "--speaker-count", help="Speaker count"),
+    speaker_count: Optional[int] = typer.Option(
+        None,
+        "--speaker-count",
+        help="Speaker count",
+    ),
     timestamp_alignment_enabled: bool = typer.Option(
         False,
         "--timestamp-alignment-enabled",

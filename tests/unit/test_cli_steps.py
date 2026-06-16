@@ -19,7 +19,9 @@ class TestCliSteps:
             captured_request.update(kwargs)
             return SimpleNamespace(
                 object="list",
-                data=[SimpleNamespace(id="step-1234", type="message_creation")],
+                data=[
+                    SimpleNamespace(id="step-1234", type="message_creation"),
+                ],
                 first_id="step-1234",
                 last_id="step-1234",
                 has_more=False,

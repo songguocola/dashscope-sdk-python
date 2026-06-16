@@ -27,7 +27,11 @@ class TestCliEmbeddings:
                 usage={"total_tokens": 2},
             )
 
-        monkeypatch.setattr(embeddings.dashscope.TextEmbedding, "call", mock_call)
+        monkeypatch.setattr(
+            embeddings.dashscope.TextEmbedding,
+            "call",
+            mock_call,
+        )
 
         result = CliRunner().invoke(
             embeddings.app,

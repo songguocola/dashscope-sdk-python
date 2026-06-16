@@ -21,7 +21,11 @@ class TestCliImageGeneration:
                         {
                             "message": {
                                 "content": [
-                                    {"image": "https://example.com/generated.png"},
+                                    {
+                                        "image": (
+                                            "https://example.com/generated.png"
+                                        ),
+                                    },
                                 ],
                             },
                         },

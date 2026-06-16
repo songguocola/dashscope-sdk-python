@@ -55,16 +55,24 @@ def create(
         help="The DashScope workspace id",
     ),
     dimension: Optional[int] = typer.Option(
-        None, "--dimension", help="Output vector dimension"
+        None,
+        "--dimension",
+        help="Output vector dimension",
     ),
     output_type: Optional[str] = typer.Option(
-        None, "--output-type", help="Output vector format"
+        None,
+        "--output-type",
+        help="Output vector format",
     ),
     fps: Optional[float] = typer.Option(
-        None, "--fps", help="Video frame extraction ratio"
+        None,
+        "--fps",
+        help="Video frame extraction ratio",
     ),
     instruct: Optional[str] = typer.Option(
-        None, "--instruct", help="Task instruction"
+        None,
+        "--instruct",
+        help="Task instruction",
     ),
     enable_fusion: Optional[bool] = typer.Option(
         None,
@@ -72,7 +80,9 @@ def create(
         help="Whether to fuse all contents into one vector",
     ),
     res_level: Optional[int] = typer.Option(
-        None, "--res-level", help="Resolution tier"
+        None,
+        "--res-level",
+        help="Resolution tier",
     ),
     max_video_frames: Optional[int] = typer.Option(
         None,

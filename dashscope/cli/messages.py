@@ -54,7 +54,12 @@ def _parse_json_object(value: Optional[str], option_name: str):
 @handle_sdk_error("Create message failed")
 def create(
     thread_id: str = typer.Argument(..., help="The thread id"),
-    content: str = typer.Option(..., "-c", "--content", help="Message content"),
+    content: str = typer.Option(
+        ...,
+        "-c",
+        "--content",
+        help="Message content",
+    ),
     role: str = typer.Option("user", "--role", help="Message role"),
     file_ids: Optional[List[str]] = typer.Option(
         None,
@@ -83,7 +88,11 @@ def create(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -91,10 +100,26 @@ def create(
 @handle_sdk_error("List messages failed")
 def list_messages(
     thread_id: str = typer.Argument(..., help="The thread id"),
-    limit: Optional[int] = typer.Option(None, "--limit", help="Maximum number of messages"),
-    order: Optional[str] = typer.Option(None, "--order", help="Sort order by created_at"),
-    after: Optional[str] = typer.Option(None, "--after", help="Cursor after message id"),
-    before: Optional[str] = typer.Option(None, "--before", help="Cursor before message id"),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        help="Maximum number of messages",
+    ),
+    order: Optional[str] = typer.Option(
+        None,
+        "--order",
+        help="Sort order by created_at",
+    ),
+    after: Optional[str] = typer.Option(
+        None,
+        "--after",
+        help="Cursor after message id",
+    ),
+    before: Optional[str] = typer.Option(
+        None,
+        "--before",
+        help="Cursor before message id",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
@@ -112,7 +137,11 @@ def list_messages(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -135,7 +164,11 @@ def get_message(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -164,7 +197,11 @@ def update_message(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -173,10 +210,26 @@ def update_message(
 def list_message_files(
     thread_id: str = typer.Argument(..., help="The thread id"),
     message_id: str = typer.Argument(..., help="The message id"),
-    limit: Optional[int] = typer.Option(None, "--limit", help="Maximum number of files"),
-    order: Optional[str] = typer.Option(None, "--order", help="Sort order by created_at"),
-    after: Optional[str] = typer.Option(None, "--after", help="Cursor after file id"),
-    before: Optional[str] = typer.Option(None, "--before", help="Cursor before file id"),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        help="Maximum number of files",
+    ),
+    order: Optional[str] = typer.Option(
+        None,
+        "--order",
+        help="Sort order by created_at",
+    ),
+    after: Optional[str] = typer.Option(
+        None,
+        "--after",
+        help="Cursor after file id",
+    ),
+    before: Optional[str] = typer.Option(
+        None,
+        "--before",
+        help="Cursor before file id",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
@@ -195,7 +248,11 @@ def list_message_files(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -220,5 +277,9 @@ def get_message_file(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )

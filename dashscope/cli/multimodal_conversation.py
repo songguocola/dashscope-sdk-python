@@ -55,10 +55,14 @@ def create(
         help="Sampling temperature",
     ),
     top_p: Optional[float] = typer.Option(
-        None, "--top-p", help="Top-p sampling"
+        None,
+        "--top-p",
+        help="Top-p sampling",
     ),
     top_k: Optional[int] = typer.Option(
-        None, "--top-k", help="Top-k sampling"
+        None,
+        "--top-k",
+        help="Top-k sampling",
     ),
     max_tokens: Optional[int] = typer.Option(
         None,

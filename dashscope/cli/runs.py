@@ -56,26 +56,63 @@ def create(
         "--assistant-id",
         help="The assistant id to run",
     ),
-    model: Optional[str] = typer.Option(None, "-m", "--model", help="The model to use"),
-    instructions: Optional[str] = typer.Option(None, "--instructions", help="Run instructions"),
+    model: Optional[str] = typer.Option(
+        None,
+        "-m",
+        "--model",
+        help="The model to use",
+    ),
+    instructions: Optional[str] = typer.Option(
+        None,
+        "--instructions",
+        help="Run instructions",
+    ),
     additional_instructions: Optional[str] = typer.Option(
         None,
         "--additional-instructions",
         help="Additional instructions appended for this run",
     ),
-    tools: Optional[str] = typer.Option(None, "--tools", help="Tools as a JSON array string"),
-    metadata: Optional[str] = typer.Option(None, "--metadata", help="Metadata as a JSON object string"),
-    extra_body: Optional[str] = typer.Option(None, "--extra-body", help="Extra body as a JSON object string"),
+    tools: Optional[str] = typer.Option(
+        None,
+        "--tools",
+        help="Tools as a JSON array string",
+    ),
+    metadata: Optional[str] = typer.Option(
+        None,
+        "--metadata",
+        help="Metadata as a JSON object string",
+    ),
+    extra_body: Optional[str] = typer.Option(
+        None,
+        "--extra-body",
+        help="Extra body as a JSON object string",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
         "--workspace",
         help="The DashScope workspace id",
     ),
-    top_p: Optional[float] = typer.Option(None, "--top-p", help="Top-p sampling"),
-    top_k: Optional[int] = typer.Option(None, "--top-k", help="Top-k sampling"),
-    temperature: Optional[float] = typer.Option(None, "--temperature", help="Sampling temperature"),
-    max_tokens: Optional[int] = typer.Option(None, "--max-tokens", help="Maximum output tokens"),
+    top_p: Optional[float] = typer.Option(
+        None,
+        "--top-p",
+        help="Top-p sampling",
+    ),
+    top_k: Optional[int] = typer.Option(
+        None,
+        "--top-k",
+        help="Top-k sampling",
+    ),
+    temperature: Optional[float] = typer.Option(
+        None,
+        "--temperature",
+        help="Sampling temperature",
+    ),
+    max_tokens: Optional[int] = typer.Option(
+        None,
+        "--max-tokens",
+        help="Maximum output tokens",
+    ),
 ):
     """Create a run."""
     response = dashscope.Runs.create(
@@ -94,7 +131,11 @@ def create(
         max_tokens=max_tokens,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -121,7 +162,11 @@ def get_run(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -129,10 +174,26 @@ def get_run(
 @handle_sdk_error("List runs failed")
 def list_runs(
     thread_id: str = typer.Argument(..., help="The thread id"),
-    limit: Optional[int] = typer.Option(None, "--limit", help="Maximum number of runs"),
-    order: Optional[str] = typer.Option(None, "--order", help="Sort order by created_at"),
-    after: Optional[str] = typer.Option(None, "--after", help="Cursor after run id"),
-    before: Optional[str] = typer.Option(None, "--before", help="Cursor before run id"),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        help="Maximum number of runs",
+    ),
+    order: Optional[str] = typer.Option(
+        None,
+        "--order",
+        help="Sort order by created_at",
+    ),
+    after: Optional[str] = typer.Option(
+        None,
+        "--after",
+        help="Cursor after run id",
+    ),
+    before: Optional[str] = typer.Option(
+        None,
+        "--before",
+        help="Cursor before run id",
+    ),
     workspace: Optional[str] = typer.Option(
         None,
         "-w",
@@ -150,7 +211,11 @@ def list_runs(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -189,7 +254,11 @@ def submit_tool_outputs(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -222,7 +291,11 @@ def wait_run(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -255,7 +328,11 @@ def update_run(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )
 
 
@@ -282,5 +359,9 @@ def cancel_run(
         workspace=workspace,
     )
     console.print_json(
-        json.dumps(response, default=lambda value: value.__dict__, ensure_ascii=False),
+        json.dumps(
+            response,
+            default=lambda value: value.__dict__,
+            ensure_ascii=False,
+        ),
     )

@@ -32,7 +32,10 @@ def create(
         ...,
         "-d",
         "--document",
-        help="Document text to rank. Repeat this option for multiple documents.",
+        help=(
+            "Document text to rank. "
+            "Repeat this option for multiple documents."
+        ),
     ),
     return_documents: Optional[bool] = typer.Option(
         None,
