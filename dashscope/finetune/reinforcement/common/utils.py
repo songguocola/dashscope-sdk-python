@@ -74,6 +74,7 @@ async def async_http_request(
         async with aiohttp.ClientSession(
             headers=headers,
             timeout=aiohttp.ClientTimeout(total=timeout),
+            trust_env=True,
         ) as session:
             method_upper = method.upper()
 
@@ -897,7 +898,7 @@ def extract_reward_weights(
         """Extract name and sub_weight from a decorator AST node."""
         args_dict = {}
         if isinstance(decorator, ast.Call):
-            # 处理 args 和 keywords
+            # Process args and keywords
             for i, arg in enumerate(decorator.args):
                 if i == 0:
                     args_dict["name"] = _resolve_str_literal(arg)
