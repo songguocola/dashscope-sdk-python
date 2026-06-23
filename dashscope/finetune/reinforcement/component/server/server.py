@@ -382,6 +382,52 @@ def _serialize_result(result: Any) -> Dict:
         return {"result": result}
 
 
+async def _cancel_task_on_disconnect(
+    process_task: "asyncio.Task",
+    disconnect_listener: "asyncio.Task",
+    disconnected: "asyncio.Event",
+) -> bool:
+    """Wait for processing or disconnect, cancel task if disconnected.
+
+    Returns True if disconnected, False if processing completed normally.
+    """
+    _done, _pending = await asyncio.wait(
+        [process_task, disconnect_listener],
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+
+    if disconnected.is_set():
+        process_task.cancel()
+        try:
+            await process_task
+        except asyncio.CancelledError:
+            pass
+        return True
+
+    return False
+
+
+async def _log_request_metrics(
+    request: "Request",
+    processor_input,
+    start_time: float,
+    success: bool,
+    cancelled: bool,
+) -> None:
+    """Log request metrics and force flush if configured."""
+    elapsed = round(time.time() - start_time, 4)
+    fc_req_id = get_fc_request_id(request)
+    biz_summary = get_business_summary(processor_input)
+    biz_part = f" | {biz_summary}" if biz_summary else ""
+    logger.info(
+        f"[Server] /api/v1 | func_type={func_type.value} | "
+        f"fc_request_id={fc_req_id} | "
+        f"success={success} | cancelled={cancelled} | "
+        f"elapsed={elapsed}s{biz_part}",
+    )
+    await maybe_force_flush_async(reason="request")
+
+
 @app.post("/api/v1")
 async def handle_endpoint(request: Request) -> JSONResponse:
     """
@@ -439,24 +485,25 @@ async def handle_endpoint(request: Request) -> JSONResponse:
         # Check thread pool queue capacity
         await _check_queue_capacity()
 
+        # Start listening for disconnect only AFTER the request body has been
+        # fully read.  Otherwise the background listener competes with the body
+        # reader for ASGI receive() messages, causing hung requests or parse
+        # failures.
+        disconnect_listener = asyncio.create_task(_listen_for_disconnect())
+
         # Execute processor as a task so we can cancel it on disconnect
         process_task = asyncio.create_task(
             func_manager.processes(processor_input),
         )
 
         # Wait for either the processing to finish or client disconnect
-        done, _pending = await asyncio.wait(
-            [process_task, disconnect_listener],
-            return_when=asyncio.FIRST_COMPLETED,
+        disconnected_flag = await _cancel_task_on_disconnect(
+            process_task,
+            disconnect_listener,
+            disconnected,
         )
 
-        if disconnected.is_set():
-            # Client disconnected — cancel the processing task
-            process_task.cancel()
-            try:
-                await process_task
-            except asyncio.CancelledError:
-                pass
+        if disconnected_flag:
             cancelled = True
             fc_request_id = get_fc_request_id(request)
             logger.warning(
@@ -507,19 +554,13 @@ async def handle_endpoint(request: Request) -> JSONResponse:
         await _cleanup_trace_context(_otel_ctx_token, _upstream_tokens)
 
         # Log request metrics
-        elapsed = round(time.time() - start_time, 4)
-        fc_req_id = get_fc_request_id(request)
-        biz_summary = get_business_summary(processor_input)
-        biz_part = f" | {biz_summary}" if biz_summary else ""
-        logger.info(
-            f"[Server] /api/v1 | func_type={func_type.value} | "
-            f"fc_request_id={fc_req_id} | "
-            f"success={success} | cancelled={cancelled} | "
-            f"elapsed={elapsed}s{biz_part}",
+        await _log_request_metrics(
+            request,
+            processor_input,
+            start_time,
+            success,
+            cancelled,
         )
-
-        # Best-effort force flush based on platform/internal env config
-        await maybe_force_flush_async(reason="request")
 
 
 @app.get("/health")
