@@ -50,18 +50,18 @@ def create(
     if stream:
         for rsp in response:
             if rsp.status_code == HTTPStatus.OK:
-                console.print(rsp.output)
+                typer.echo(rsp.output)
                 usage = getattr(rsp, "usage", None)
                 if usage:
-                    console.print(usage)
+                    typer.echo(usage)
             else:
                 print_failed_message(rsp)
     else:
         if response.status_code == HTTPStatus.OK:
-            console.print(response.output)
+            typer.echo(response.output)
             usage = getattr(response, "usage", None)
             if usage:
-                console.print(usage)
+                typer.echo(usage)
         else:
             print_failed_message(response)
             raise typer.Exit(1)
