@@ -29,16 +29,30 @@ class Models(ListMixin, GetMixin):
         """
         from http import HTTPStatus
 
-        # Use path parameter to get specific model
-        # API endpoint: /api/v1/models/{name}
-        url = join_url(dashscope.base_http_api_url, cls.SUB_PATH.lower(), name)
+        # Use query parameter to filter by model name on server side
+        # API endpoint: /api/v1/models?model={name}&page_no=1&page_size=1
+        url = join_url(dashscope.base_http_api_url, cls.SUB_PATH.lower())
+        params = {"model": name, "page_no": 1, "page_size": 1}
 
         response = _get(
             url,
+            params=params,
             api_key=api_key,
             **kwargs,
         )
 
+        if response.status_code != HTTPStatus.OK:
+            return response  # type: ignore[return-value]
+
+        output = response.output
+        if not output or "models" not in output or not output["models"]:
+            response.status_code = 404
+            response.message = f"Model '{name}' not found"
+            response.output = None
+            return response  # type: ignore[return-value]
+
+        # Return the first (and only) model from the filtered list
+        response.output = output["models"][0]
         return response  # type: ignore[return-value]
 
     @classmethod
