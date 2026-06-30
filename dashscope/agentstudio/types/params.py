@@ -453,3 +453,93 @@ class SkillVersionListParams(BaseModel):
     """Query params for ``GET /skills/{skill_id}/versions``."""
 
     _fields = ("limit", "page")
+
+
+# ===========================================================================
+# Vaults
+# ===========================================================================
+
+
+class VaultCreateParams(BaseModel):
+    """Request body for ``POST /vaults``."""
+
+    _fields = ("display_name", "metadata")
+
+
+class VaultUpdateParams(BaseModel):
+    """Request body for ``POST /vaults/{vault_id}``."""
+
+    _fields = ("display_name", "metadata")
+
+
+class VaultListParams(BaseModel):
+    """Query params for ``GET /vaults``."""
+
+    _fields = ("keyword", "include_archived", "limit", "page")
+
+    def __init__(
+        self,
+        *,
+        include_archived: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        if include_archived is not None:
+            kwargs["include_archived"] = str(
+                include_archived,
+            ).lower()
+        super().__init__(**kwargs)
+
+
+# ===========================================================================
+# Credentials
+# ===========================================================================
+
+
+class CredentialCreateParams(BaseModel):
+    """Request body for ``POST /vaults/{vault_id}/credentials``."""
+
+    _fields = ("auth", "display_name", "metadata")
+
+    def __init__(self, *, auth: Any = None, **kwargs: Any) -> None:
+        if auth is not None:
+            if hasattr(auth, "to_dict"):
+                kwargs["auth"] = auth.to_dict()
+            elif isinstance(auth, Mapping):
+                kwargs["auth"] = dict(auth)
+            else:
+                kwargs["auth"] = auth
+        super().__init__(**kwargs)
+
+
+class CredentialUpdateParams(BaseModel):
+    """Request body for ``POST /vaults/{v}/credentials/{c}``."""
+
+    _fields = ("auth", "display_name", "metadata")
+
+    def __init__(self, *, auth: Any = None, **kwargs: Any) -> None:
+        if auth is not None:
+            if hasattr(auth, "to_dict"):
+                kwargs["auth"] = auth.to_dict()
+            elif isinstance(auth, Mapping):
+                kwargs["auth"] = dict(auth)
+            else:
+                kwargs["auth"] = auth
+        super().__init__(**kwargs)
+
+
+class CredentialListParams(BaseModel):
+    """Query params for ``GET /vaults/{vault_id}/credentials``."""
+
+    _fields = ("include_archived", "limit", "page")
+
+    def __init__(
+        self,
+        *,
+        include_archived: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        if include_archived is not None:
+            kwargs["include_archived"] = str(
+                include_archived,
+            ).lower()
+        super().__init__(**kwargs)

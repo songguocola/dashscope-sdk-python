@@ -9,12 +9,14 @@ from typing import Any, Mapping
 from dashscope.agentstudio.types import (
     Agent,
     AgentVersion,
+    Credential,
     Environment,
     File,
     ServerEvent,
     Session,
     Skill,
     SkillVersion,
+    Vault,
     parse_server_event,
 )
 
@@ -54,6 +56,14 @@ def _coerce_event(payload: Mapping[str, Any]) -> ServerEvent:
 
 def _coerce_session(payload: Mapping[str, Any]) -> Session:
     return Session(**dict(payload))
+
+
+def _coerce_vault(payload: Mapping[str, Any]) -> Vault:
+    return Vault(**dict(payload))
+
+
+def _coerce_credential(payload: Mapping[str, Any]) -> Credential:
+    return Credential(**dict(payload))
 
 
 # ---------------------------------------------------------------------------

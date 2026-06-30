@@ -26,10 +26,6 @@ from dashscope.agentstudio.resources._helpers import (
     _stream_path,
 )
 from dashscope.agentstudio.streaming import AsyncEventStream, EventStream
-from dashscope.agentstudio.tools import (
-    AsyncSessionToolRunner,
-    SessionToolRunner,
-)
 from dashscope.agentstudio.types import ServerEvent
 from dashscope.agentstudio.types.params import (
     SessionEventListParams,
@@ -154,29 +150,6 @@ class SessionEvents:
         # the response, NOT the transport.
         return _TypedEventStream(
             EventStream(response=resp),
-        )
-
-    def tool_runner(
-        self,
-        session_id: str,
-        *,
-        tools: Sequence[Any],
-        events: Optional[Sequence[Mapping[str, Any]]] = None,
-        max_idle_seconds: int = 300,
-        max_concurrent: int = 4,
-    ) -> SessionToolRunner:
-        """Convenience wrapper around :class:`SessionToolRunner`.
-
-        If ``events`` is provided, they will be sent **after** the SSE stream
-        is opened (inside ``run()``) to guarantee no events are missed.
-        """
-        return SessionToolRunner(
-            client=self._client,
-            session_id=session_id,
-            tools=list(tools),
-            events=list(events) if events else None,
-            max_idle_seconds=max_idle_seconds,
-            max_concurrent=max_concurrent,
         )
 
 
@@ -339,30 +312,6 @@ class AsyncSessionEvents:
         # the response, NOT the transport.
         return _AioTypedEventStream(
             AsyncEventStream(response=resp),
-        )
-
-    def tool_runner(
-        self,
-        session_id: str,
-        *,
-        tools: Sequence[Any],
-        events: Optional[Sequence[Mapping[str, Any]]] = None,
-        max_idle_seconds: int = 300,
-        max_concurrent: int = 4,
-    ) -> AsyncSessionToolRunner:
-        """Convenience wrapper around :class:`AsyncSessionToolRunner`.
-
-        If ``events`` is provided, they will be sent concurrently with
-        the SSE stream opening (inside ``run()``) to guarantee no events
-        are missed.
-        """
-        return AsyncSessionToolRunner(
-            client=self._client,
-            session_id=session_id,
-            tools=list(tools),
-            events=list(events) if events else None,
-            max_idle_seconds=max_idle_seconds,
-            max_concurrent=max_concurrent,
         )
 
 

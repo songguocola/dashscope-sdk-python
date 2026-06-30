@@ -6,9 +6,8 @@ The ``agentstudio`` package wraps the AgentStudio managed-agent HTTP
 API.  All resource classes are accessed through a client instance::
 
     from dashscope.agentstudio import Client
-    from dashscope.agentstudio import tool
     from dashscope.agentstudio.types import (
-        user_message, user_custom_tool_result,
+        user_message, user_tool_result,
     )
 
 Example
@@ -53,23 +52,14 @@ from .pagination import (
     CursorPage,
     IdCursorPage,
 )
-from .tools import (
-    AsyncSessionToolRunner,
-    DispatchedTool,
-    SessionToolRunner,
-    ToolSpec,
-    collect_specs,
-    tool,
-    tool_from_spec,
-)
 from .types import (
     Message,
     ServerEvent,
-    user_custom_tool_result,
     user_define_outcome,
     user_interrupt,
     user_message,
     user_tool_confirmation,
+    user_custom_tool_result,
     user_tool_result,
 )
 from .types.params import (
@@ -109,14 +99,6 @@ __all__ = [
     "AsyncCursorPage",
     "IdCursorPage",
     "AsyncIdCursorPage",
-    # tools
-    "tool",
-    "tool_from_spec",
-    "ToolSpec",
-    "collect_specs",
-    "SessionToolRunner",
-    "AsyncSessionToolRunner",
-    "DispatchedTool",
     # unified message type
     "Message",
     "ServerEvent",

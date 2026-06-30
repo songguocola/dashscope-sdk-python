@@ -17,9 +17,10 @@ from dashscope.agentstudio.resources.environments import (
 from dashscope.agentstudio.resources.files import Files, AsyncFiles
 from dashscope.agentstudio.resources.sessions import Sessions, AsyncSessions
 from dashscope.agentstudio.resources.skills import Skills, AsyncSkills
+from dashscope.agentstudio.resources.vaults import Vaults, AsyncVaults
 from dashscope.agentstudio.constants import (
     AGENTSTUDIO_BASE_URL_TEMPLATE,
-    AGENTSTUDIO_DEFAULT_WORKSPACE,
+    AGENTSTUDIO_DEFAULT_REGION,
     AGENTSTUDIO_DEFAULT_TIMEOUT,
     AGENTSTUDIO_MAX_RETRIES,
 )
@@ -30,13 +31,14 @@ from dashscope.common.api_key import get_default_api_key
 def _resolve_base_url(
     explicit_url: Optional[str],
     workspace: Optional[str],
+    region: Optional[str] = None,
 ) -> str:
     """Resolve the base URL.
 
     Priority:
     1. explicit base_url parameter (full URL)
     2. DASHSCOPE_AGENTSTUDIO_URL / AGENTSTUDIO_URL env
-    3. Build from workspace template
+    3. Build from workspace + region template
     """
     if explicit_url:
         return explicit_url
@@ -45,13 +47,19 @@ def _resolve_base_url(
     )
     if env_url:
         return env_url
-    # Build from workspace
-    ws = (
-        workspace
-        or os.environ.get("DASHSCOPE_WORKSPACE")
-        or AGENTSTUDIO_DEFAULT_WORKSPACE
+    # Build from workspace + region
+    ws = workspace or os.environ.get("DASHSCOPE_WORKSPACE")
+    if not ws:
+        raise ValueError(
+            "workspace is required when base_url is not provided "
+            "(pass workspace='ws_xxx' or set DASHSCOPE_WORKSPACE env var "
+            "or use base_url=... to override)",
+        )
+    rgn = region or AGENTSTUDIO_DEFAULT_REGION
+    return AGENTSTUDIO_BASE_URL_TEMPLATE.format(
+        workspace=ws,
+        region=rgn,
     )
-    return AGENTSTUDIO_BASE_URL_TEMPLATE.format(workspace=ws)
 
 
 def _user_agent(base_url: str) -> str:
@@ -82,6 +90,7 @@ class Client:
         *,
         api_key: Optional[str] = None,
         workspace: Optional[str] = None,
+        region: Optional[str] = None,
         base_url: Optional[str] = None,
         uid: Optional[str] = None,
         timeout: Optional[
@@ -90,12 +99,12 @@ class Client:
         max_retries: int = AGENTSTUDIO_MAX_RETRIES,
         http_client: Optional[httpx.Client] = None,
     ) -> None:
-        resolved_workspace = (
-            workspace
-            or os.environ.get("DASHSCOPE_WORKSPACE")
-            or AGENTSTUDIO_DEFAULT_WORKSPACE
+        resolved_workspace = workspace or os.environ.get("DASHSCOPE_WORKSPACE")
+        resolved_base = _resolve_base_url(
+            base_url,
+            resolved_workspace,
+            region,
         )
-        resolved_base = _resolve_base_url(base_url, resolved_workspace)
         self.transport = SyncTransport(
             base_url=resolved_base,
             api_key=api_key or get_default_api_key(),
@@ -111,6 +120,7 @@ class Client:
         self.environments = Environments(self)
         self.files = Files(self)
         self.skills = Skills(self)
+        self.vaults = Vaults(self)
 
     def close(self) -> None:
         self.transport.close()
@@ -150,6 +160,7 @@ class AsyncClient:
         *,
         api_key: Optional[str] = None,
         workspace: Optional[str] = None,
+        region: Optional[str] = None,
         base_url: Optional[str] = None,
         uid: Optional[str] = None,
         timeout: Optional[
@@ -158,12 +169,12 @@ class AsyncClient:
         max_retries: int = AGENTSTUDIO_MAX_RETRIES,
         http_client: Optional[httpx.AsyncClient] = None,
     ) -> None:
-        resolved_workspace = (
-            workspace
-            or os.environ.get("DASHSCOPE_WORKSPACE")
-            or AGENTSTUDIO_DEFAULT_WORKSPACE
+        resolved_workspace = workspace or os.environ.get("DASHSCOPE_WORKSPACE")
+        resolved_base = _resolve_base_url(
+            base_url,
+            resolved_workspace,
+            region,
         )
-        resolved_base = _resolve_base_url(base_url, resolved_workspace)
         self.transport = AsyncTransport(
             base_url=resolved_base,
             api_key=api_key or get_default_api_key(),
@@ -179,6 +190,7 @@ class AsyncClient:
         self.environments = AsyncEnvironments(self)
         self.files = AsyncFiles(self)
         self.skills = AsyncSkills(self)
+        self.vaults = AsyncVaults(self)
 
     async def aclose(self) -> None:
         await self.transport.aclose()

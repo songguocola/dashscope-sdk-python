@@ -69,10 +69,14 @@ class EventStream:
             for sse in self._event_source.iter_sse():
                 if sse.data:
                     try:
-                        yield json.loads(sse.data)
+                        payload = json.loads(sse.data)
                     except json.JSONDecodeError:
                         logger.warning("SSE frame contains invalid JSON")
                         yield {"_raw": sse.data}
+                        continue
+                    if not payload:
+                        continue
+                    yield payload
         finally:
             self.close()
 
@@ -113,10 +117,14 @@ class AsyncEventStream:
             async for sse in self._event_source.aiter_sse():
                 if sse.data:
                     try:
-                        yield json.loads(sse.data)
+                        payload = json.loads(sse.data)
                     except json.JSONDecodeError:
                         logger.warning("SSE frame contains invalid JSON")
                         yield {"_raw": sse.data}
+                        continue
+                    if not payload:
+                        continue
+                    yield payload
         finally:
             await self.aclose()
 

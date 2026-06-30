@@ -38,7 +38,7 @@ class _Tx:
 @pytest.fixture(name="client")
 def _client_fixture():
     """Create a client with a recording transport."""
-    c = Client(api_key="test-key")
+    c = Client(api_key="test-key", base_url="http://test")
     c.transport = _Tx()
     return c
 
@@ -63,18 +63,18 @@ def _fake_upload_fixture(client, monkeypatch):
 
 def test_skill_create_with_file_id_does_not_call_upload(client, fake_upload):
     upload_calls, _ = fake_upload
-    client.skills.create(file_id="file_existing", name="demo")
+    client.skills.create(file_id="file_existing")
 
     assert upload_calls == []
     body = client.transport.calls[0]["json"]
-    assert body == {"file_id": "file_existing", "name": "demo"}
+    assert body == {"file_id": "file_existing"}
 
 
 def test_skill_create_with_file_path_auto_uploads_first(client, fake_upload):
     upload_calls, holder = fake_upload
     holder["id"] = "file_uploaded"
 
-    client.skills.create(file="/tmp/skill.zip", name="demo")
+    client.skills.create(file="/tmp/skill.zip")
 
     assert len(upload_calls) == 1
     assert upload_calls[0]["file"] == "/tmp/skill.zip"
@@ -90,7 +90,7 @@ def test_skill_create_rejects_both_file_and_file_id(client):
 
 def test_skill_create_rejects_neither_file_nor_file_id(client):
     with pytest.raises(TypeError):
-        client.skills.create(name="demo")
+        client.skills.create()
 
 
 def test_skill_versions_create_auto_upload(client, fake_upload):

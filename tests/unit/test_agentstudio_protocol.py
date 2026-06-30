@@ -257,11 +257,13 @@ def test_session_stats_and_usage_fields():
     """Session now parses ``stats`` and ``usage`` from server response."""
     from dashscope.agentstudio.types import Session
 
-    stats = {"total_events": 42, "total_turns": 5}
+    stats = {"active_seconds": 42, "duration_seconds": 5}
     usage = {"input_tokens": 100, "output_tokens": 200}
     s = Session(id="sesn_1", status="idle", stats=stats, usage=usage)
-    assert s.stats == stats
-    assert s.usage == usage
+    assert s.stats.active_seconds == 42
+    assert s.stats.duration_seconds == 5
+    assert s.usage.input_tokens == 100
+    assert s.usage.output_tokens == 200
 
 
 def test_from_response_spring_default():

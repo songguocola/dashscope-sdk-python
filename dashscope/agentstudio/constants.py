@@ -19,9 +19,9 @@ else:
 # Configuration
 # ---------------------------------------------------------------------------
 
-_HOST = "https://{workspace}.cn-beijing.maas.aliyuncs.com"
+_HOST = "https://{workspace}.{region}.maas.aliyuncs.com"
 AGENTSTUDIO_BASE_URL_TEMPLATE = _HOST + "/api/v1/agentstudio"
-AGENTSTUDIO_DEFAULT_WORKSPACE = "trial"
+AGENTSTUDIO_DEFAULT_REGION = "cn-beijing"
 AGENTSTUDIO_DEFAULT_TIMEOUT = httpx.Timeout(600.0, connect=10.0)
 AGENTSTUDIO_MAX_RETRIES = 2
 

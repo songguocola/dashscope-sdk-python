@@ -18,6 +18,7 @@ the resource modules so each endpoint can hydrate its own typed shapes.
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 import socket
 import time
@@ -32,6 +33,8 @@ from dashscope.agentstudio.constants import (
     AGENTSTUDIO_DEFAULT_TIMEOUT,
     AGENTSTUDIO_MAX_RETRIES,
 )
+
+logger = logging.getLogger("dashscope.agentstudio")
 
 # ---------------------------------------------------------------------------
 # Base data classes (merged from _base.py)
@@ -428,6 +431,12 @@ class SyncTransport:
             payload = {"raw": resp.text}
 
         if resp.status_code >= 400 or is_error_payload(payload):
+            logger.warning(
+                "AgentStudio request failed: status=%s request_id=%s body=%s",
+                resp.status_code,
+                header_rid,
+                str(payload)[:500],
+            )
             raise exceptions.from_response(
                 status_code=resp.status_code,
                 body=payload,
@@ -646,6 +655,12 @@ class AsyncTransport:
             payload = {"raw": resp.text}
 
         if resp.status_code >= 400 or is_error_payload(payload):
+            logger.warning(
+                "AgentStudio request failed: status=%s request_id=%s body=%s",
+                resp.status_code,
+                header_rid,
+                str(payload)[:500],
+            )
             raise exceptions.from_response(
                 status_code=resp.status_code,
                 body=payload,

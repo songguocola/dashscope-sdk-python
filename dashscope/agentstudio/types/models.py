@@ -159,6 +159,12 @@ class StopReason(BaseModel):
     _fields = ("type", "event_ids")
 
 
+class Stats(BaseModel):
+    """Session runtime statistics."""
+
+    _fields = ("active_seconds", "duration_seconds")
+
+
 class Usage(BaseModel):
     """Token usage carried by ``span.model_request_end`` events."""
 
@@ -167,6 +173,7 @@ class Usage(BaseModel):
         "output_tokens",
         "cache_creation_input_tokens",
         "cache_read_input_tokens",
+        "cache_creation",
         "speed",
     )
 
@@ -339,6 +346,7 @@ class Agent(BaseModel):
         "mcp_servers",
         "skills",
         "metadata",
+        "workspace_id",
         "archived_at",
         "created_at",
         "updated_at",
@@ -352,7 +360,12 @@ class Agent(BaseModel):
 
 
 class AgentVersion(BaseModel):
-    _fields = ("id", "version", "name", "description", "created_at")
+    _fields = (
+        "agent_id",
+        "version",
+        "config",
+        "created_at",
+    )
 
 
 class Environment(BaseModel):
@@ -385,16 +398,10 @@ class File(BaseModel):
         "downloadable",
         "mime_type",
         "size_bytes",
-        "scope",
+        "status",
         "created_at",
         "request_id",
     )
-
-    def __init__(self, **kwargs: Any) -> None:
-        scope = kwargs.get("scope")
-        if isinstance(scope, Mapping):
-            kwargs["scope"] = Scope(**dict(scope))
-        super().__init__(**kwargs)
 
 
 class Skill(BaseModel):
@@ -436,8 +443,6 @@ class Session(BaseModel):
         "type",
         "title",
         "agent",
-        "agent_id",
-        "agent_version",
         "environment_id",
         "status",
         "stop_reason",
@@ -445,11 +450,37 @@ class Session(BaseModel):
         "metadata",
         "stats",
         "usage",
+        "vault_ids",
         "archived_at",
         "created_at",
         "updated_at",
         "request_id",
     )
+
+    def __init__(self, **kwargs: Any) -> None:
+        agent = kwargs.get("agent")
+        if isinstance(agent, Mapping):
+            kwargs["agent"] = Agent(**dict(agent))
+        sr = kwargs.get("stop_reason")
+        if isinstance(sr, Mapping):
+            kwargs["stop_reason"] = StopReason(**dict(sr))
+        usage = kwargs.get("usage")
+        if isinstance(usage, Mapping):
+            kwargs["usage"] = Usage(**dict(usage))
+        stats = kwargs.get("stats")
+        if isinstance(stats, Mapping):
+            kwargs["stats"] = Stats(**dict(stats))
+        super().__init__(**kwargs)
+
+    @property
+    def agent_id(self) -> Optional[str]:
+        a = self.agent
+        return a.id if isinstance(a, Agent) else None
+
+    @property
+    def agent_version(self) -> Optional[int]:
+        a = self.agent
+        return a.version if isinstance(a, Agent) else None
 
 
 class SessionThread(BaseModel):
@@ -519,6 +550,37 @@ class Message(BaseModel):
         if content:
             return f"[{etype}] " + " ".join(str(b) for b in content)
         return f"[{etype}]"
+
+    @property
+    def stop_reason(self) -> Optional[Dict[str, Any]]:
+        """``stop_reason`` carried by ``session_status`` idle events.
+
+        The server puts ``stop_reason`` inside the ``session_status`` event's
+        data block (not in ``session.retrieve()``).  Returns a dict like
+        ``{"type": "end_turn"}`` or ``None`` for non-session_status events.
+        """
+        if getattr(self, "type", None) != SSEEventType.SESSION_STATUS:
+            return None
+        for block in self.content or []:
+            d = getattr(block, "data", None)
+            if isinstance(d, dict) and "stop_reason" in d:
+                return d["stop_reason"]
+        return None
+
+    @property
+    def session_status(self) -> Optional[str]:
+        """``session_status`` value from ``session_status`` events.
+
+        Returns ``"idle"``, ``"running"``, ``"rescheduling"``,
+        ``"terminated"`` or ``None`` for non-session_status events.
+        """
+        if getattr(self, "type", None) != SSEEventType.SESSION_STATUS:
+            return None
+        for block in self.content or []:
+            d = getattr(block, "data", None)
+            if isinstance(d, dict) and "session_status" in d:
+                return d["session_status"]
+        return None
 
 
 def parse_message(payload: Mapping[str, Any]) -> Message:
@@ -716,7 +778,66 @@ def user_define_outcome(
 
 
 # ===========================================================================
-# Section 6 – Backward compatibility aliases
+# Section 6 – Vaults & Credentials
+# ===========================================================================
+
+
+class CredentialAuth(BaseModel):
+    _fields = (
+        "type",
+        "access_token",
+        "mcp_server_url",
+        "expires_at",
+        "refresh",
+        "token",
+        "secret_name",
+        "secret_value",
+        "networking",
+    )
+
+    def __init__(self, **kwargs: Any) -> None:
+        net = kwargs.get("networking")
+        if isinstance(net, dict):
+            kwargs["networking"] = Networking(**net)
+        super().__init__(**kwargs)
+
+
+class Vault(BaseModel):
+    _fields = (
+        "id",
+        "archived_at",
+        "created_at",
+        "display_name",
+        "metadata",
+        "type",
+        "updated_at",
+        "request_id",
+    )
+
+
+class Credential(BaseModel):
+    _fields = (
+        "id",
+        "archived_at",
+        "auth",
+        "created_at",
+        "display_name",
+        "metadata",
+        "type",
+        "updated_at",
+        "vault_id",
+        "request_id",
+    )
+
+    def __init__(self, **kwargs: Any) -> None:
+        auth = kwargs.get("auth")
+        if isinstance(auth, dict):
+            kwargs["auth"] = CredentialAuth(**auth)
+        super().__init__(**kwargs)
+
+
+# ===========================================================================
+# Section 7 – Backward compatibility aliases
 # ===========================================================================
 
 # server_events.py  ──  ServerEvent was the base class; now it's Message

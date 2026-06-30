@@ -34,10 +34,18 @@ from dashscope.agentstudio.resources.skills import (
     SkillVersions,
     Skills,
 )
+from dashscope.agentstudio.resources.vaults import (
+    AsyncCredentials,
+    AsyncVaults,
+    Credentials,
+    Vaults,
+)
 
 __all__ = [
     "Agents",
     "AsyncAgents",
+    "Credentials",
+    "AsyncCredentials",
     "Environments",
     "AsyncEnvironments",
     "Files",
@@ -50,6 +58,8 @@ __all__ = [
     "AsyncSessions",
     "SessionEvents",
     "AsyncSessionEvents",
+    "Vaults",
+    "AsyncVaults",
     "_TypedEventStream",
     "_AioTypedEventStream",
 ]
