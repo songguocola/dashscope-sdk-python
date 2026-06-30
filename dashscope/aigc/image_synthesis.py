@@ -464,7 +464,8 @@ class ImageSynthesis(BaseAsyncApi):
         if color_palette is not None:
             kwargs["color_palette"] = color_palette
         task_group, f = _get_task_group_and_task(__name__)
-        inputs, kwargs, task = cls._get_input(
+        # pylint: disable=protected-access
+        inputs, kwargs, task = ImageSynthesis._get_input(
             model,
             prompt,
             negative_prompt,
@@ -785,6 +786,30 @@ class AioImageSynthesis(BaseAsyncAioApi):
         Note: This method currently now only supports wan2.2-t2i-flash and wan2.2-t2i-plus.  # noqa: E501  # pylint: disable=line-too-long
             Using other models will result in an error，More raw image models may be added for use later  # pylint: disable=line-too-long
         """
+        if size is not None:
+            kwargs["size"] = size
+        if n is not None:
+            kwargs["n"] = n
+        if seed is not None:
+            kwargs["seed"] = seed
+        if style is not None:
+            kwargs["style"] = style
+        if ref_strength is not None:
+            kwargs["ref_strength"] = ref_strength
+        if ref_mode is not None:
+            kwargs["ref_mode"] = ref_mode
+        if prompt_extend is not None:
+            kwargs["prompt_extend"] = prompt_extend
+        if watermark is not None:
+            kwargs["watermark"] = watermark
+        if bbox_list is not None:
+            kwargs["bbox_list"] = bbox_list
+        if enable_sequential is not None:
+            kwargs["enable_sequential"] = enable_sequential
+        if thinking_mode is not None:
+            kwargs["thinking_mode"] = thinking_mode
+        if color_palette is not None:
+            kwargs["color_palette"] = color_palette
         task_group, f = _get_task_group_and_task(__name__)
         # pylint: disable=protected-access
         inputs, kwargs, task = ImageSynthesis._get_input(
@@ -886,6 +911,30 @@ class AioImageSynthesis(BaseAsyncAioApi):
             DashScopeAPIResponse: The image synthesis
                 task id in the response.
         """
+        if size is not None:
+            kwargs["size"] = size
+        if n is not None:
+            kwargs["n"] = n
+        if seed is not None:
+            kwargs["seed"] = seed
+        if style is not None:
+            kwargs["style"] = style
+        if ref_strength is not None:
+            kwargs["ref_strength"] = ref_strength
+        if ref_mode is not None:
+            kwargs["ref_mode"] = ref_mode
+        if prompt_extend is not None:
+            kwargs["prompt_extend"] = prompt_extend
+        if watermark is not None:
+            kwargs["watermark"] = watermark
+        if bbox_list is not None:
+            kwargs["bbox_list"] = bbox_list
+        if enable_sequential is not None:
+            kwargs["enable_sequential"] = enable_sequential
+        if thinking_mode is not None:
+            kwargs["thinking_mode"] = thinking_mode
+        if color_palette is not None:
+            kwargs["color_palette"] = color_palette
         task_group, f = _get_task_group_and_task(__name__)
         # pylint: disable=protected-access
         inputs, kwargs, task = ImageSynthesis._get_input(

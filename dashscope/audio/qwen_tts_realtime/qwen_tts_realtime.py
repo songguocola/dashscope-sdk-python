@@ -377,9 +377,18 @@ class QwenTtsRealtime:
                             self.last_first_audio_delay,
                         )
             except json.JSONDecodeError:
-                logger.error("Failed to parse message as JSON.")
-                # pylint: disable=broad-exception-raised,raise-missing-from
-                raise Exception("Failed to parse message as JSON.")
+                logger.error(
+                    "Failed to parse message as JSON: %s",
+                    message[:200],
+                )
+                # Do not raise exception here, let the connection stay alive.
+                # Raising exception in callback can cause unexpected thread
+                # termination.
+            except Exception as e:
+                logger.error("Error processing message: %s", str(e))
+                # Do not raise exception here, let the connection stay alive.
+                # Raising exception in callback can cause unexpected thread
+                # termination.
         elif isinstance(message, (bytes, bytearray)):
             # If parsing fails, treat as binary message
             logger.error(
