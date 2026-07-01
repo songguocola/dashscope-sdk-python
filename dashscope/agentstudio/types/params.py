@@ -240,9 +240,11 @@ class SessionCreateParams(BaseModel):
     """Request body for ``POST /sessions``.
 
     ``agent`` is the agent ID string (not the full agent object).
+    ``resources`` is an optional list of file mounts; each item is a
+    mapping with ``type``, ``file_id`` and ``mount_path`` keys.
     """
 
-    _fields = ("agent", "environment_id", "title", "metadata")
+    _fields = ("agent", "environment_id", "title", "resources", "metadata")
 
     def __init__(  # pylint: disable=useless-parent-delegation
         self,
@@ -250,12 +252,16 @@ class SessionCreateParams(BaseModel):
         agent: str,
         environment_id: Optional[str] = None,
         title: Optional[str] = None,
+        resources: Optional[Sequence[Mapping[str, Any]]] = None,
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> None:
         super().__init__(
             agent=agent,
             environment_id=environment_id,
             title=title,
+            resources=(
+                [dict(r) for r in resources] if resources is not None else None
+            ),
             metadata=(dict(metadata) if metadata is not None else None),
         )
 
@@ -413,7 +419,7 @@ class FileListParams(BaseModel):
     represented as a param class.
     """
 
-    _fields = ("limit", "page", "scope_id", "after_id", "before_id")
+    _fields = ("limit", "page", "scope_id")
 
 
 # ===========================================================================
@@ -475,7 +481,7 @@ class VaultUpdateParams(BaseModel):
 class VaultListParams(BaseModel):
     """Query params for ``GET /vaults``."""
 
-    _fields = ("keyword", "include_archived", "limit", "page")
+    _fields = ("include_archived", "limit", "page")
 
     def __init__(
         self,

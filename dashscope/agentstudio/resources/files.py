@@ -19,8 +19,8 @@ from typing import (
 )
 
 from dashscope.agentstudio.pagination import (
-    AsyncIdCursorPage,
-    IdCursorPage,
+    AsyncCursorPage,
+    CursorPage,
     build_page,
 )
 from dashscope.agentstudio.resources._helpers import (
@@ -171,15 +171,11 @@ class Files:
         limit: Optional[int] = None,
         page: Optional[str] = None,
         scope_id: Optional[str] = None,
-        after_id: Optional[str] = None,
-        before_id: Optional[str] = None,
-    ) -> IdCursorPage[File]:
+    ) -> CursorPage[File]:
         params = FileListParams(
             limit=limit,
             page=page,
             scope_id=scope_id,
-            after_id=after_id,
-            before_id=before_id,
         ).to_dict()
         resp = self._client.transport.request(
             "GET",
@@ -187,10 +183,10 @@ class Files:
             params=params,
         )
 
-        def fetch_next(token: str) -> IdCursorPage[File]:
+        def fetch_next(token: str) -> CursorPage[File]:
             return self.list(
                 limit=limit,
-                after_id=token,
+                page=token,
                 scope_id=scope_id,
             )
 
@@ -198,7 +194,7 @@ class Files:
             payload=resp.data,
             item_factory=_coerce_file,
             request_id=resp.request_id,
-            page_cls=IdCursorPage,
+            page_cls=CursorPage,
             fetch_next=fetch_next,
         )
 
@@ -272,15 +268,11 @@ class AsyncFiles:
         limit: Optional[int] = None,
         page: Optional[str] = None,
         scope_id: Optional[str] = None,
-        after_id: Optional[str] = None,
-        before_id: Optional[str] = None,
-    ) -> AsyncIdCursorPage[File]:
+    ) -> AsyncCursorPage[File]:
         params = FileListParams(
             limit=limit,
             page=page,
             scope_id=scope_id,
-            after_id=after_id,
-            before_id=before_id,
         ).to_dict()
         resp = await self._client.transport.request(
             "GET",
@@ -288,10 +280,10 @@ class AsyncFiles:
             params=params,
         )
 
-        async def fetch_next(token: str) -> AsyncIdCursorPage[File]:
+        async def fetch_next(token: str) -> AsyncCursorPage[File]:
             return await self.list(
                 limit=limit,
-                after_id=token,
+                page=token,
                 scope_id=scope_id,
             )
 
@@ -299,7 +291,7 @@ class AsyncFiles:
             payload=resp.data,
             item_factory=_coerce_file,
             request_id=resp.request_id,
-            page_cls=AsyncIdCursorPage,
+            page_cls=AsyncCursorPage,
             fetch_next=fetch_next,
         )
 

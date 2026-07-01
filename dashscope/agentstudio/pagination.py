@@ -4,9 +4,7 @@
 
 AgentStudio uses opaque cursor pagination: callers pass ``limit`` and
 ``page`` (a cursor token returned by the previous page in
-``next_page``). The Files endpoint additionally supports ``after_id`` /
-``before_id`` for ID-anchored navigation; that variant is exposed via
-:class:`IdCursorPage`.
+``next_page``).
 """
 
 from __future__ import annotations
@@ -116,19 +114,6 @@ class AsyncCursorPage(Generic[T]):
            ``len(page.data)`` for an explicit current-page count.
         """
         return len(self.data)
-
-
-class IdCursorPage(CursorPage[T]):
-    """Files API uses ``after_id`` / ``before_id`` instead of ``page``.
-
-    ``next_page`` is filled with the last item id (or ``None`` when the
-    list ends), and the SDK injects it as ``after_id`` on the follow-up
-    request.
-    """
-
-
-class AsyncIdCursorPage(AsyncCursorPage[T]):
-    """Async variant of :class:`IdCursorPage`."""
 
 
 def build_page(

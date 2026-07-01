@@ -42,12 +42,14 @@ class Sessions:
         agent: str,
         environment_id: Optional[str] = None,
         title: Optional[str] = None,
+        resources: Optional[Sequence[Mapping[str, Any]]] = None,
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> Session:
         body = SessionCreateParams(
             agent=agent,
             environment_id=environment_id,
             title=title,
+            resources=resources,
             metadata=metadata,
         ).to_dict()
         resp = self._client.transport.request(
@@ -163,12 +165,14 @@ class AsyncSessions:
         agent: str,
         environment_id: Optional[str] = None,
         title: Optional[str] = None,
+        resources: Optional[Sequence[Mapping[str, Any]]] = None,
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> Session:
         body = SessionCreateParams(
             agent=agent,
             environment_id=environment_id,
             title=title,
+            resources=resources,
             metadata=metadata,
         ).to_dict()
         resp = await self._client.transport.request(

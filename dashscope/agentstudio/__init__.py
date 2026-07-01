@@ -48,9 +48,7 @@ from .exceptions import (
 )
 from .pagination import (
     AsyncCursorPage,
-    AsyncIdCursorPage,
     CursorPage,
-    IdCursorPage,
 )
 from .types import (
     Message,
@@ -97,8 +95,6 @@ __all__ = [
     # pagination
     "CursorPage",
     "AsyncCursorPage",
-    "IdCursorPage",
-    "AsyncIdCursorPage",
     # unified message type
     "Message",
     "ServerEvent",
