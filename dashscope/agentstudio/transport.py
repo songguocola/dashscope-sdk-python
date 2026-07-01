@@ -6,7 +6,7 @@ This module wraps ``httpx.Client`` (sync) and ``httpx.AsyncClient``
 (async) so the rest of the SDK can speak in plain Python data structures.
 The transport layer is responsible for:
 
-* injecting auth / workspace / uid / x-request-id headers,
+* injecting auth / workspace / uid headers,
 * JSON encoding / decoding the request and response bodies,
 * converting non-2xx responses into :class:`AgentStudioError`,
 * retry-on-network-error with bounded exponential backoff.
@@ -22,7 +22,6 @@ import logging
 import random
 import socket
 import time
-import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, IO, Mapping, Optional, Tuple, Union
 
@@ -130,16 +129,6 @@ def is_error_payload(payload: Any) -> bool:
             )
         )
     return False
-
-
-def _new_request_id() -> str:
-    """Generate ``req_<26-char ULID-ish>``.
-
-    We use a UUID4 substring rather than an actual ULID to avoid an extra
-    runtime dependency – the backend treats this header opaquely.
-    """
-
-    return "req_" + uuid.uuid4().hex[:26]
 
 
 def _resolve_timeout(
@@ -381,7 +370,12 @@ class SyncTransport:
                 if attempt >= self.max_retries or not should_retry:
                     raise exceptions.APIConnectionError(str(exc)) from exc
             else:
-                if not stream and _should_retry(
+                if stream:
+                    if resp.status_code >= 400:
+                        resp.read()
+                    else:
+                        return resp
+                if _should_retry(
                     resp.status_code,
                     resp.headers,
                 ):
@@ -389,23 +383,18 @@ class SyncTransport:
                         f"HTTP {resp.status_code}",
                         status_code=resp.status_code,
                     )
-                    if attempt >= self.max_retries:
-                        try:
-                            return self._parse(resp)
-                        finally:
-                            resp.close()
-                    wait = _get_retry_after(resp.headers) or _backoff(attempt)
-                    resp.close()
-                    time.sleep(wait)
-                    attempt += 1
-                    continue
-                if stream:
-                    return resp
+                    if attempt < self.max_retries:
+                        wait = _get_retry_after(resp.headers) or _backoff(
+                            attempt,
+                        )
+                        resp.close()
+                        time.sleep(wait)
+                        attempt += 1
+                        continue
                 try:
                     return self._parse(resp)
                 finally:
-                    if not stream:
-                        resp.close()
+                    resp.close()
             time.sleep(_backoff(attempt))
             attempt += 1
         raise exceptions.APIConnectionError(
@@ -470,9 +459,9 @@ class SyncTransport:
         self.close()
 
     def __del__(self) -> None:
-        if self.is_closed:
-            return
         try:
+            if self.is_closed:
+                return
             self.close()
         except Exception:
             pass
@@ -605,7 +594,12 @@ class AsyncTransport:
                 if attempt >= self.max_retries or not should_retry:
                     raise exceptions.APIConnectionError(str(exc)) from exc
             else:
-                if not stream and _should_retry(
+                if stream:
+                    if resp.status_code >= 400:
+                        await resp.aread()
+                    else:
+                        return resp
+                if _should_retry(
                     resp.status_code,
                     resp.headers,
                 ):
@@ -613,23 +607,18 @@ class AsyncTransport:
                         f"HTTP {resp.status_code}",
                         status_code=resp.status_code,
                     )
-                    if attempt >= self.max_retries:
-                        try:
-                            return await self._parse(resp)
-                        finally:
-                            await resp.aclose()
-                    wait = _get_retry_after(resp.headers) or _backoff(attempt)
-                    await resp.aclose()
-                    await asyncio.sleep(wait)
-                    attempt += 1
-                    continue
-                if stream:
-                    return resp
+                    if attempt < self.max_retries:
+                        wait = _get_retry_after(resp.headers) or _backoff(
+                            attempt,
+                        )
+                        await resp.aclose()
+                        await asyncio.sleep(wait)
+                        attempt += 1
+                        continue
                 try:
                     return await self._parse(resp)
                 finally:
-                    if not stream:
-                        await resp.aclose()
+                    await resp.aclose()
             await asyncio.sleep(_backoff(attempt))
             attempt += 1
         raise exceptions.APIConnectionError(

@@ -14,7 +14,6 @@ from typing import (
     Sequence,
 )
 
-from dashscope.agentstudio import exceptions
 from dashscope.agentstudio.pagination import (
     AsyncCursorPage,
     CursorPage,
@@ -132,22 +131,6 @@ class SessionEvents:
             stream=True,
             timeout=timeout or AGENTSTUDIO_DEFAULT_TIMEOUT,
         )
-        if resp.status_code >= 400:
-            try:
-                resp.read()
-                body = resp.json()
-            except ValueError:
-                body = {"raw": resp.text}
-            try:
-                raise exceptions.from_response(
-                    status_code=resp.status_code,
-                    body=body,
-                    headers=resp.headers,
-                )
-            finally:
-                resp.close()
-        # Transport is shared -- stream close only closes
-        # the response, NOT the transport.
         return _TypedEventStream(
             EventStream(response=resp),
         )
@@ -294,22 +277,6 @@ class AsyncSessionEvents:
             stream=True,
             timeout=timeout or AGENTSTUDIO_DEFAULT_TIMEOUT,
         )
-        if resp.status_code >= 400:
-            try:
-                await resp.aread()
-                body = resp.json()
-            except ValueError:
-                body = {"raw": resp.text}
-            try:
-                raise exceptions.from_response(
-                    status_code=resp.status_code,
-                    body=body,
-                    headers=resp.headers,
-                )
-            finally:
-                await resp.aclose()
-        # Transport is shared -- stream close only closes
-        # the response, NOT the transport.
         return _AioTypedEventStream(
             AsyncEventStream(response=resp),
         )

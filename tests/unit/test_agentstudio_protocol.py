@@ -21,13 +21,12 @@ import pytest
 from dashscope.agentstudio import exceptions
 from dashscope.agentstudio.transport import is_error_payload, unwrap
 from dashscope.agentstudio.types import (
-    user_message,
-    user_interrupt,
-    user_tool_confirmation,
     user_custom_tool_result,
     user_define_outcome,
+    user_interrupt,
+    user_message,
+    user_tool_confirmation,
 )
-
 
 # ---------------------------------------------------------------------------
 # 1. error.{code, message}
@@ -276,3 +275,72 @@ def test_from_response_spring_default():
     }
     err = exceptions.from_response(status_code=404, body=body)
     assert isinstance(err, exceptions.NotFoundError)
+
+
+# ---------------------------------------------------------------------------
+# 4. agents.update version contract (no auto-retrieve)
+# ---------------------------------------------------------------------------
+
+
+class _RecordingTransport:
+    """Minimal transport that records requests and returns a canned agent."""
+
+    def __init__(self):
+        self.calls = []
+
+    def request(self, method, path, **kwargs):
+        self.calls.append({"method": method, "path": path, **kwargs})
+        from dashscope.agentstudio.transport import APIResponse
+
+        return APIResponse(
+            data={"id": "agent_1", "version": 3, "name": "demo"},
+            request_id="req_1",
+        )
+
+
+def _client_with_recording_transport():
+    from dashscope.agentstudio import Client
+
+    c = Client(api_key="test-key", base_url="http://test")
+    c.transport = _RecordingTransport()
+    return c
+
+
+def test_agents_update_requires_version_kwarg():
+    """version is required — omitting it is a TypeError."""
+    client = _client_with_recording_transport()
+    with pytest.raises(TypeError):
+        # pylint: disable=missing-kwoa
+        client.agents.update(  # type: ignore[call-arg]
+            "agent_1",
+            name="new-name",
+        )
+
+
+def test_agents_update_with_version_sends_body():
+    """update() sends POST /agents/{id} with version."""
+    client = _client_with_recording_transport()
+    client.agents.update(
+        "agent_1",
+        version=3,
+        name="new-name",
+    )
+    assert len(client.transport.calls) == 1
+    call = client.transport.calls[0]
+    assert call["method"] == "POST"
+    assert call["path"] == "/agents/agent_1"
+    body = call["json"]
+    assert body["version"] == 3
+    assert body["name"] == "new-name"
+
+
+def test_agents_update_does_not_auto_retrieve():
+    """SDK must NOT call retrieve() internally."""
+    client = _client_with_recording_transport()
+    client.agents.update(
+        "agent_1",
+        version=3,
+        name="new-name",
+    )
+    assert len(client.transport.calls) == 1
+    assert client.transport.calls[0]["method"] == "POST"

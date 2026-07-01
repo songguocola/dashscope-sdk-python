@@ -23,7 +23,6 @@ from dashscope.agentstudio.types.params import (
     AgentVersionListParams,
 )
 
-
 _PATH_AGENTS = "/agents"
 
 
@@ -82,6 +81,7 @@ class Agents:
         self,
         agent_id: str,
         *,
+        version: int,
         name: Optional[str] = None,
         description: Optional[str] = None,
         model: Optional[str] = None,
@@ -91,9 +91,14 @@ class Agents:
         skills: Optional[Sequence[Mapping[str, Any]]] = None,
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> Agent:
-        current = self.retrieve(agent_id)
+        """Update the latest version of an agent.
+
+        ``version`` must equal the server's current version;
+        the server rejects mismatches with HTTP 409.
+        Retrieve the agent first to obtain the current version.
+        """
         body = AgentUpdateParams(
-            version=current.version,
+            version=version,
             name=name,
             description=description,
             model=model,
@@ -229,6 +234,7 @@ class AsyncAgents:
         self,
         agent_id: str,
         *,
+        version: int,
         name: Optional[str] = None,
         description: Optional[str] = None,
         model: Optional[str] = None,
@@ -238,9 +244,14 @@ class AsyncAgents:
         skills: Optional[Sequence[Mapping[str, Any]]] = None,
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> Agent:
-        current = await self.retrieve(agent_id)
+        """Update the latest version of an agent.
+
+        ``version`` must equal the server's current version;
+        the server rejects mismatches with HTTP 409.
+        Retrieve the agent first to obtain the current version.
+        """
         body = AgentUpdateParams(
-            version=current.version,
+            version=version,
             name=name,
             description=description,
             model=model,
