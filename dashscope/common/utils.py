@@ -166,7 +166,7 @@ def default_headers(api_key: str = None) -> Dict[str, str]:
     if api_key is None:
         api_key = get_default_api_key()
     headers["Authorization"] = f"Bearer {api_key}"
-    headers["Accept"] = "application/json"
+    headers["Accept"] = "application/json; charset=utf-8"
     return headers
 
 
