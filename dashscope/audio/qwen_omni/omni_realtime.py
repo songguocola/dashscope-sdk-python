@@ -5,7 +5,7 @@ import json
 import threading
 import time
 from dataclasses import field, dataclass
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Union
 import uuid
 from enum import Enum, unique
 
@@ -87,6 +87,7 @@ class AudioFormat(Enum):
         return f"{self.format.upper()} with {self.sample_rate}Hz sample rate, {self.channels} channel, {self.bit_rate} bit rate:  {self.format_str}"  # noqa: E501  # pylint: disable=line-too-long
 
 
+@unique
 class AudioFormatType(Enum):
     """
     Preset audio format types for omni realtime input/output audio.
@@ -140,15 +141,21 @@ class AudioFormatConfig:
     sample_rate: int
         audio sample rate in Hz. Presets ``AudioSampleRate`` (8000 / 16000 /
         24000 / 48000) are provided for convenience; accepts an
-        ``AudioSampleRate`` enum or any raw int value.
+        ``AudioSampleRate`` enum or any raw int value. Defaults to 16000,
+        which suits input audio; for output audio the server-side default
+        is typically 24000, set it explicitly if needed.
     extra_params: Dict[str, Any]
         free extension parameters that will be merged into the ``format``
         dict. Reserved for future parameters such as speech rate, e.g.
-        ``{"speech_rate": 1.2}``.
+        ``{"speech_rate": 1.2}``. Merged last, so identical keys (including
+        ``type`` / ``sample_rate``) override the dataclass fields.
     """
 
-    type: Any = AudioFormatType.PCM.value
-    sample_rate: Any = AudioSampleRate.SAMPLE_RATE_16K.value
+    type: Union[str, AudioFormatType] = AudioFormatType.PCM.value
+    sample_rate: Union[
+        int,
+        AudioSampleRate,
+    ] = AudioSampleRate.SAMPLE_RATE_16K.value
     extra_params: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -332,6 +339,11 @@ class OmniRealtimeConversation:
         when ``input_audio_config`` / ``output_audio_config`` is provided,
         otherwise keep the old-style top-level fields for backward
         compatibility.
+
+        When only one side is provided, the other side is omitted from the
+        request and the server-side default applies (input: pcm/16000,
+        output: pcm/24000); the legacy top-level fields are NOT mixed in,
+        to avoid sending both structures in one request.
         """
         if input_audio_config is None and output_audio_config is None:
             # old-style: keep backward compatibility
@@ -346,6 +358,42 @@ class OmniRealtimeConversation:
         if output_audio_config is not None:
             audio["output"] = {"format": output_audio_config.to_dict()}
         self.config["audio"] = audio
+
+    def _apply_transcription_params(
+        self,
+        transcription_params: TranscriptionParams,
+    ) -> None:
+        """
+        apply transcription params into ``self.config``.
+
+        The legacy top-level ``input_audio_format`` / ``sample_rate`` fields
+        are skipped when the new-style ``audio`` structure is present, to
+        avoid sending conflicting audio format fields in one request.
+        """
+        self.config["input_audio_transcription"] = {}
+        if transcription_params.language is not None:
+            self.config["input_audio_transcription"].update(
+                {"language": transcription_params.language},
+            )
+        if transcription_params.corpus_text is not None:
+            transcription_params.corpus = {
+                "text": transcription_params.corpus_text,
+            }
+        if transcription_params.corpus is not None:
+            self.config["input_audio_transcription"].update(
+                {"corpus": transcription_params.corpus},
+            )
+        if "audio" in self.config:
+            logger.warning(
+                "[omni realtime] input_audio_config/output_audio_config is "
+                "set, skip top-level input_audio_format/sample_rate from "
+                "transcription_params to avoid conflicting audio formats",
+            )
+            return
+        self.config[
+            "input_audio_format"
+        ] = transcription_params.input_audio_format
+        self.config["sample_rate"] = transcription_params.sample_rate
 
     def update_session(
         self,
@@ -377,13 +425,15 @@ class OmniRealtimeConversation:
         voice: str
             voice to be used in session
         input_audio_format: AudioFormat
-            input audio format. Deprecated, kept for backward compatibility.
-            Prefer ``input_audio_config`` which supports separate audio
-            format type and sample rate.
+            input audio format. Legacy parameter, kept for backward
+            compatibility and still the default path. Prefer
+            ``input_audio_config`` which supports separate audio format
+            type and sample rate.
         output_audio_format: AudioFormat
-            output audio format. Deprecated, kept for backward compatibility.
-            Prefer ``output_audio_config`` which supports separate audio
-            format type and sample rate.
+            output audio format. Legacy parameter, kept for backward
+            compatibility and still the default path. Prefer
+            ``output_audio_config`` which supports separate audio format
+            type and sample rate.
         enable_turn_detection: bool
             enable turn detection
         turn_detection_threshold: float
@@ -409,6 +459,14 @@ class OmniRealtimeConversation:
             type (pcm/wav) and sample rate (8000/16000/24000/48000), as well
             as free extension parameters via ``extra_params``. When provided,
             the request emits the ``session.audio.output.format`` structure.
+
+        Notes
+        -----
+        Once either ``input_audio_config`` or ``output_audio_config`` is
+        provided, the legacy top-level ``input_audio_format`` /
+        ``output_audio_format`` fields are not sent; an unspecified side
+        falls back to the server-side default. The top-level format fields
+        from ``transcription_params`` are also skipped in this case.
         """
         self.config = {
             "modalities": [m.value for m in output_modalities],
@@ -450,23 +508,7 @@ class OmniRealtimeConversation:
                         "phrases": translation_params.corpus.phrases,
                     }
         if transcription_params is not None:
-            self.config["input_audio_transcription"] = {}
-            if transcription_params.language is not None:
-                self.config["input_audio_transcription"].update(
-                    {"language": transcription_params.language},
-                )
-            if transcription_params.corpus_text is not None:
-                transcription_params.corpus = {
-                    "text": transcription_params.corpus_text,
-                }
-            if transcription_params.corpus is not None:
-                self.config["input_audio_transcription"].update(
-                    {"corpus": transcription_params.corpus},
-                )
-            self.config[
-                "input_audio_format"
-            ] = transcription_params.input_audio_format
-            self.config["sample_rate"] = transcription_params.sample_rate
+            self._apply_transcription_params(transcription_params)
         self.config.update(kwargs)
         self.__send_str(
             json.dumps(
