@@ -19,6 +19,7 @@ import certifi
 _shared_ssl_context: Optional[ssl.SSLContext] = None
 _aio_sessions: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
 _lock = threading.RLock()
+_session_finalizers: dict = {}
 
 
 def get_ssl_context() -> ssl.SSLContext:
@@ -49,7 +50,38 @@ async def get_shared_aio_session() -> aiohttp.ClientSession:
         session = aiohttp.ClientSession(connector=connector, trust_env=True)
 
         _aio_sessions[loop] = session
+        # Register GC-safe finalizer to close session when loop is collected
+        _session_finalizers[id(session)] = weakref.finalize(
+            session,
+            _sync_close_session,
+            id(session),
+        )
     return session
+
+
+def _sync_close_session(session_id: int) -> None:
+    """GC callback to safely close a session outside async context."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            return
+        if loop.is_running():
+            asyncio.ensure_future(_async_close_by_id(session_id))
+        else:
+            loop.run_until_complete(_async_close_by_id(session_id))
+    except RuntimeError:
+        pass
+
+
+async def _async_close_by_id(session_id: int) -> None:
+    """Close session by ID, safe against already-collected sessions."""
+    with _lock:
+        for loop, session in list(_aio_sessions.items()):
+            if id(session) == session_id and not session.closed:
+                await session.close()
+                _aio_sessions.pop(loop, None)
+                _session_finalizers.pop(session_id, None)
+                return
 
 
 def _atexit_cleanup() -> None:

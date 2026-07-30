@@ -62,8 +62,7 @@ class ApiRequestData:
             for k, v in self.__dict__.items()
             if not (
                 k.startswith("_")
-                or k.startswith("task")
-                or k.startswith("function")
+                or k in ("task_group", "task", "function")
                 or v is None
             )
         }

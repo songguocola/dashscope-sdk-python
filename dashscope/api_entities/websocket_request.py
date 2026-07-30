@@ -80,6 +80,7 @@ class WebSocketRequest(AioBaseRequest):
             "streaming": self.ws_stream_mode,
         }
         self.pre_task_id = pre_task_id
+        self.ws = None
 
     def add_headers(self, headers):
         self.headers.update(headers)
@@ -127,8 +128,9 @@ class WebSocketRequest(AioBaseRequest):
                 async with session.ws_connect(
                     self.url,
                     headers=self.headers,
-                    heartbeat=6000,
+                    heartbeat=30,
                 ) as ws:
+                    self.ws = ws  # Store ws reference for close() method
                     await self._start_task(ws)  # send start task action.
                     task_id = self.task_headers["task_id"]
                     await self._wait_for_task_started(
@@ -234,7 +236,7 @@ class WebSocketRequest(AioBaseRequest):
                 code=code,
                 message=msg,
             )
-        except BaseException as e:
+        except Exception as e:
             logger.exception(e)
             yield DashScopeAPIResponse(
                 request_id="",

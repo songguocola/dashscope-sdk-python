@@ -16,9 +16,6 @@ class DictMixin(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def __getitem__(self, key):
-        return super().__getitem__(key)
-
     def __copy__(self):
         return type(self)(**self)
 
@@ -30,18 +27,6 @@ class DictMixin(dict):
             memo[id_self] = _copy
         return _copy
 
-    def __setitem__(self, key, value):
-        return super().__setitem__(key, value)
-
-    def __delitem__(self, key):
-        return super().__delitem__(key)
-
-    def get(self, key, default=None):
-        return super().get(key, default)
-
-    def setdefault(self, key, default=None):
-        return super().setdefault(key, default)
-
     def pop(self, key, default: Any = _MISSING):
         if default is _MISSING:
             return super().pop(key)
@@ -49,9 +34,6 @@ class DictMixin(dict):
 
     def update(self, **kwargs):
         super().update(**kwargs)
-
-    def __contains__(self, key):
-        return super().__contains__(key)
 
     def copy(self):
         return type(self)(self)

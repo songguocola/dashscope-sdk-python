@@ -9,7 +9,7 @@ import time
 
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 
@@ -214,10 +214,14 @@ class Encryption:
 
         base64_aes_key = base64.b64encode(aes_key).decode("utf-8")
 
-        # Encrypt with RSA
+        # Encrypt with RSA-OAEP (secure against Bleichenbacher attacks)
         encrypted_bytes = public_key.encrypt(
             base64_aes_key.encode("utf-8"),
-            padding.PKCS1v15(),
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
+            ),
         )
 
         return base64.b64encode(encrypted_bytes).decode("utf-8")
