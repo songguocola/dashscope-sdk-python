@@ -58,7 +58,7 @@ def _deployment_payload() -> Dict[str, Any]:
         },
         "created_at": "2026-07-27T01:00:00Z",
         "updated_at": "2026-07-27T01:00:00Z",
-        "requestId": "req_01",
+        "request_id": "req_01",
     }
 
 
@@ -74,7 +74,7 @@ def _run_payload() -> Dict[str, Any]:
         "error": {"code": "RUN_FAILED", "message": "failed"},
         "started_at": "2026-07-27T01:00:00.123Z",
         "finished_at": "2026-07-27T01:01:00.456Z",
-        "requestId": "req_02",
+        "request_id": "req_02",
     }
 
 
@@ -177,6 +177,7 @@ def test_create_serializes_contract_and_hydrates_nested_models(client: Client):
     assert isinstance(deployment.resources[0], DeploymentResource)
     assert isinstance(deployment.paused_reason, DeploymentPausedReason)
     assert isinstance(deployment.paused_reason.error, DeploymentError)
+    assert deployment.request_id == "req_01"
 
 
 def test_update_distinguishes_omitted_and_explicit_null(client: Client):
@@ -242,6 +243,7 @@ def test_lifecycle_run_and_run_history_routes(client: Client):
     assert ("GET", "/deployment_runs/drun_01") in routes
     assert isinstance(run.agent, DeploymentAgentReference)
     assert isinstance(run.error, DeploymentError)
+    assert run.request_id == "req_02"
     assert history.data[0].deployment_id == "depl_01"
     assert all_runs.data[0].id == "drun_01"
     assert retrieved.session_id == "session_01"
