@@ -19,7 +19,6 @@ import certifi
 _shared_ssl_context: Optional[ssl.SSLContext] = None
 _aio_sessions: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
 _lock = threading.RLock()
-_session_finalizers: dict = {}
 
 
 def get_ssl_context() -> ssl.SSLContext:
@@ -51,11 +50,7 @@ async def get_shared_aio_session() -> aiohttp.ClientSession:
 
         _aio_sessions[loop] = session
         # Register GC-safe finalizer to close session when loop is collected
-        _session_finalizers[id(session)] = weakref.finalize(
-            session,
-            _sync_close_session,
-            id(session),
-        )
+        weakref.finalize(session, _sync_close_session, id(session))
     return session
 
 
@@ -80,7 +75,6 @@ async def _async_close_by_id(session_id: int) -> None:
             if id(session) == session_id and not session.closed:
                 await session.close()
                 _aio_sessions.pop(loop, None)
-                _session_finalizers.pop(session_id, None)
                 return
 
 
