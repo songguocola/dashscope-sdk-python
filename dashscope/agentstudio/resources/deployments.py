@@ -45,7 +45,7 @@ class Deployments:
         schedule: Any = None,
         resources: Optional[Sequence[Any]] = None,
         vault_ids: Optional[Sequence[str]] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, str]] = None,
     ) -> Deployment:
         body = DeploymentCreateParams(
             name=name,
@@ -86,7 +86,7 @@ class Deployments:
         initial_events: Optional[Sequence[Mapping[str, Any]]] = None,
         resources: Optional[Sequence[Any]] = None,
         vault_ids: Optional[Sequence[str]] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, str]] = None,
     ) -> Deployment:
         body = DeploymentUpdateParams(
             name=name,
@@ -249,7 +249,7 @@ class AsyncDeployments:
         schedule: Any = None,
         resources: Optional[Sequence[Any]] = None,
         vault_ids: Optional[Sequence[str]] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, str]] = None,
     ) -> Deployment:
         body = DeploymentCreateParams(
             name=name,
@@ -290,7 +290,7 @@ class AsyncDeployments:
         initial_events: Optional[Sequence[Mapping[str, Any]]] = None,
         resources: Optional[Sequence[Any]] = None,
         vault_ids: Optional[Sequence[str]] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, str]] = None,
     ) -> Deployment:
         body = DeploymentUpdateParams(
             name=name,

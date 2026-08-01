@@ -171,12 +171,14 @@ def test_create_serializes_contract_and_hydrates_nested_models(client: Client):
     assert call["json"]["agent"] == {"id": "agent_01", "version": 12}
     assert call["json"]["initial_events"][0]["type"] == "message"
     assert call["json"]["schedule"]["timezone"] == "Asia/Shanghai"
+    assert call["json"]["metadata"] == {"biz": "summary"}
     assert isinstance(deployment.agent, Agent)
     assert deployment.agent.version == 12
     assert isinstance(deployment.schedule, DeploymentSchedule)
     assert isinstance(deployment.resources[0], DeploymentResource)
     assert isinstance(deployment.paused_reason, DeploymentPausedReason)
     assert isinstance(deployment.paused_reason.error, DeploymentError)
+    assert deployment.metadata == {"biz": "summary"}
     assert deployment.request_id == "req_01"
 
 
@@ -191,11 +193,13 @@ def test_update_distinguishes_omitted_and_explicit_null(client: Client):
         environment_id=None,
         schedule=None,
         resources=[],
+        metadata={},
     )
     clear_body = client.transport.calls[-1]["json"]
     assert clear_body["environment_id"] is None
     assert clear_body["schedule"] is None
     assert clear_body["resources"] == []
+    assert clear_body["metadata"] == {}
 
 
 def test_list_filters_and_cursor_pagination(client: Client):
@@ -259,11 +263,15 @@ def test_async_resources_use_same_contract():
             name="daily-summary",
             agent={"id": "agent_01"},
             initial_events=[user_message("Summarize")],
+            metadata={"biz": "summary"},
         )
         run = await client.deployments.run("depl_01")
         runs = await client.deployment_runs.list(limit=5)
 
         assert deployment.id == "depl_01"
+        assert client.transport.calls[0]["json"]["metadata"] == {
+            "biz": "summary"
+        }
         assert run.id == "drun_01"
         assert runs.data[0].id == "drun_01"
         await client.aclose()

@@ -546,6 +546,8 @@ class DeploymentPausedReason(BaseModel):
 class Deployment(BaseModel):
     """Managed Agent deployment."""
 
+    metadata: Optional[Dict[str, str]]
+
     _fields = (
         "id",
         "type",

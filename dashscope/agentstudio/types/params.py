@@ -448,7 +448,7 @@ class DeploymentCreateParams(BaseModel):
         schedule: Any = None,
         resources: Optional[Sequence[Any]] = None,
         vault_ids: Optional[Sequence[str]] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, str]] = None,
     ) -> None:
         BaseModel.__init__(
             self,
@@ -499,7 +499,7 @@ class DeploymentUpdateParams(BaseModel):
         initial_events: Optional[Sequence[Mapping[str, Any]]] = None,
         resources: Optional[Sequence[Any]] = None,
         vault_ids: Optional[Sequence[str]] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, str]] = None,
     ) -> None:
         self._environment_id_given = environment_id is not _NOT_GIVEN
         self._schedule_given = schedule is not _NOT_GIVEN
