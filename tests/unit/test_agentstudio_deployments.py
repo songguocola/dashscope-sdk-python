@@ -270,7 +270,7 @@ def test_async_resources_use_same_contract():
 
         assert deployment.id == "depl_01"
         assert client.transport.calls[0]["json"]["metadata"] == {
-            "biz": "summary"
+            "biz": "summary",
         }
         assert run.id == "drun_01"
         assert runs.data[0].id == "drun_01"
