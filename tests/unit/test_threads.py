@@ -4,7 +4,7 @@
 import json
 import uuid
 
-from dashscope import Threads
+from dashscope import Threads  # pylint: disable=no-name-in-module
 from tests.unit.mock_request_base import MockServerBase
 from tests.unit.mock_server import MockServer
 
