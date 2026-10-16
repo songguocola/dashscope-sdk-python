@@ -4,7 +4,7 @@
 import json
 import uuid
 
-from dashscope import Messages
+from dashscope import Messages  # pylint: disable=no-name-in-module
 from dashscope.threads.messages.files import Files
 from tests.unit.mock_request_base import MockServerBase
 from tests.unit.mock_server import MockServer

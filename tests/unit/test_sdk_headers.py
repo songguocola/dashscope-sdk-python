@@ -533,7 +533,7 @@ def test_tasks_module(capture_headers):
 
 def test_resource_api_modules(capture_headers):
     # pylint: disable=unused-argument,import-outside-toplevel,redefined-outer-name
-    from dashscope import (
+    from dashscope import (  # pylint: disable=no-name-in-module
         Assistants,
         Deployments,
         Files,
@@ -661,9 +661,10 @@ def test_encryption_module(monkeypatch):
         "dashscope.api_entities.encryption.requests.get",
         fake_get,
     )
+    monkeypatch.setattr("dashscope.api_key", "sk-test")
     print("\n=== misc ===")
     try:
-        Encryption._get_public_keys()  # pylint: disable=protected-access
+        Encryption()._get_public_keys()  # pylint: disable=protected-access
     except _CapturedRequest as e:
         _check_module(e.headers, "utils", "utils: Encryption public-keys")
     else:
