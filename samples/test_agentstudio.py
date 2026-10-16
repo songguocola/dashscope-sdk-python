@@ -61,6 +61,55 @@ class TestAgentStudio:
         client.sessions.archive(session.id)
         print("done.")
 
+    @staticmethod
+    def test_memory_stores():
+        """Memory store flow: create store -> seed memory -> read back
+        -> audit versions -> cleanup."""
+        api_key = os.environ["DASHSCOPE_API_KEY"]
+        workspace = os.environ.get("DASHSCOPE_WORKSPACE", "trial")
+        client = Client(api_key=api_key, workspace=workspace)
+
+        print("==> creating memory store")
+        store = client.memory_stores.create(
+            name="demo-preferences",
+            description="Per-user preferences and project context.",
+        )
+        print(f"   memory_store_id={store.id}")
+
+        print("==> seeding a memory")
+        mem = client.memory_stores.memories.create(
+            store.id,
+            path="/formatting_standards.md",
+            content="All reports use GAAP formatting.",
+        )
+        print(f"   memory_id={mem.id} size={mem.content_size_bytes}")
+
+        print("==> listing memories")
+        page = client.memory_stores.memories.list(store.id, view="full")
+        for item in page:
+            print(f"   {item.path} -> {item.content}")
+        # Directory nodes ride the page's prefixes field (per page):
+        print(f"   prefixes={page.prefixes}")
+
+        print("==> updating with optimistic lock")
+        updated = client.memory_stores.memories.update(
+            store.id,
+            mem.id,
+            content="All reports use GAAP formatting. ISO-8601 dates.",
+            content_sha256=mem.content_sha256,
+        )
+        print(f"   new sha={updated.content_sha256[:12]}...")
+
+        print("==> listing versions")
+        for v in client.memory_stores.memory_versions.list(store.id):
+            print(f"   {v.id}: {v.operation}")
+
+        print("==> deleting memory store")
+        client.memory_stores.delete(store.id)
+        print("done.")
+
 
 if __name__ == "__main__":
     TestAgentStudio.test_quickstart()
+    # Memory flow creates and deletes a real store; opt in explicitly:
+    # TestAgentStudio.test_memory_stores()
