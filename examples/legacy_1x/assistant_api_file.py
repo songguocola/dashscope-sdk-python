@@ -8,7 +8,7 @@ DASHSCOPE_FILE_ID environment variable.
 
 import os
 
-from dashscope import Assistants
+from dashscope import Assistants  # pylint: disable=no-name-in-module
 from dashscope.assistants.files import Files
 
 # Authentication: set your Model Studio API key via the

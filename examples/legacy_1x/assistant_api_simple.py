@@ -5,7 +5,12 @@
 import sys
 from http import HTTPStatus
 
-from dashscope import Assistants, Messages, Runs, Threads
+from dashscope import (  # pylint: disable=no-name-in-module
+    Assistants,
+    Messages,
+    Runs,
+    Threads,
+)
 
 
 def verify_status_code(res):

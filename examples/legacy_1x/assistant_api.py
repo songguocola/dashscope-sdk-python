@@ -4,7 +4,7 @@
 
 import os
 
-from dashscope import Assistants
+from dashscope import Assistants  # pylint: disable=no-name-in-module
 
 # Authentication: set your Model Studio API key via the
 # DASHSCOPE_API_KEY environment variable (recommended)
