@@ -93,8 +93,8 @@ Uniform style: `client = dashscope.Client()` (reads the key from the `DASHSCOPE_
 | `text_generation/chat.py` | Text generation: one-line `dashscope.chat()`, non-streaming, streaming (text_stream) |
 | `text_generation/tokenization.py` | Token counting |
 | `multimodal_vision/multimodal_chat.py` | Multimodal chat (qwen-vl image understanding) |
-| `audio_speech/audio_tts.py` | Speech synthesis (one-shot + streaming) |
-| `audio_speech/audio_asr.py` | Batch speech recognition |
+| `audio_speech/audio_tts.py` | Speech synthesis (one-shot + streaming); 2.0 audio API is a preview and may change |
+| `audio_speech/audio_asr.py` | Batch speech recognition; 2.0 audio API is a preview and may change |
 | `audio_speech/tingwu.py` | TingWu offline tasks and realtime sessions |
 | `image_video_synthesis/images.py` | Image generation: one-call generate-and-wait + the manual jobs flow |
 | `image_video_synthesis/videos.py` | Video generation: one-call generate-and-wait + the manual jobs flow |
