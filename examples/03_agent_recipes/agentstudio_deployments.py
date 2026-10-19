@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Create and run a Managed Agent deployment.
+# Copyright (c) Alibaba, Inc. and its affiliates.
+"""dashscope 2.0 agent recipe: create and run a Managed Agent deployment.
 
-Set DASHSCOPE_API_KEY and DASHSCOPE_WORKSPACE before running this sample.
+Requires DASHSCOPE_API_KEY; DASHSCOPE_WORKSPACE selects the
+AgentStudio workspace (defaults to trial).
 """
 
-from dashscope.agentstudio import Client, user_message
+import os
+
+import dashscope
+from dashscope.agentstudio import user_message
 
 
 def main() -> None:
-    with Client() as client:
-        deployment = client.deployments.create(
+    workspace = os.environ.get("DASHSCOPE_WORKSPACE", "trial")
+    with dashscope.Client(workspace=workspace) as client:
+        deployment = client.agentstudio.deployments.create(
             name="daily-summary",
             description="Generate a daily summary",
             agent={"id": "agent_xxx"},
@@ -23,10 +29,13 @@ def main() -> None:
         )
         print("deployment:", deployment.id, deployment.status)
 
-        run = client.deployments.run(deployment.id)
+        run = client.agentstudio.deployments.run(deployment.id)
         print("run:", run.id, run.status)
 
-        for item in client.deployments.list_runs(deployment.id, limit=20):
+        for item in client.agentstudio.deployments.list_runs(
+            deployment.id,
+            limit=20,
+        ):
             print(item.id, item.trigger_source, item.status)
 
 

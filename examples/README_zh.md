@@ -104,6 +104,7 @@ examples/
 | `files/files.py` | 文件管理：上传 / 列表 / 查询 / 删除 |
 | `applications/apps.py` | 百炼应用调用（非流式 + 流式） |
 | `fine_tuning/fine_tunes.py` | 微调任务：list / get、create / wait / delete（取消注释即可运行） |
+| `fine_tuning/reinforcement_learning.py` | 智能体 RL：任务 list / get；注册函数 -> 上传数据 -> create / wait / delete（取消注释即可运行） |
 | `models/models.py` | 模型列表与详情 |
 
 ## 02_advanced_engineering —— 进阶工程
@@ -121,6 +122,8 @@ examples/
 | `tool_call_loop.py` | 受管多轮工具调用状态机：声明 `tools` schema，模型请求调用时本地执行，把 `role="tool"` 结果喂回，循环直到最终答案（带 `MAX_TURNS` 兜底） | 是 |
 | `rag_expert_system.py` | 标准 RAG：语料向量 -> 余弦 top-k 召回 -> `client.rerank` 精排 -> "仅依据资料作答"的聊天 prompt -> 带引用的答案 | 是 |
 | `mcp_server_demo/` | 零依赖 MCP（Model Context Protocol）stdio server + client 演示：`server.py` 讲 JSON-RPC 2.0；`client_demo.py` 拉起子进程并跑 initialize -> tools/list -> tools/call。见其 `README.md` | 否 |
+| `agentstudio.py` | AgentStudio 端到端 quickstart（经 `client.agentstudio`）：环境 -> 智能体 -> 会话 -> 流式回复（另附可选的 memory store 演示）；AgentStudio 为 1.x/2.0 两代共用模块，挂载在 2.0 客户端上 | 是 |
+| `agentstudio_deployments.py` | 托管智能体部署：创建 cron 定时部署、触发运行、列出运行记录 | 是 |
 
 ## 04_real_world_scenarios —— 真实场景
 
@@ -146,7 +149,6 @@ examples/
 | `multimodal_conversation/` | MultiModalConversation 多模态对话：图像、视频、工具调用、OCR、ASR、深度思考 |
 | `aio_multimodal_conversation/` | 上述的异步版本 |
 | `application.py` | 百炼应用（Application）调用 |
-| `agentstudio.py` / `agentstudio_deployments.py` | AgentStudio 会话与托管部署 |
 | `assistant_api*.py` | Assistant 智能体：创建 / 更新、文件挂载、端到端对话 |
 | `image_generation.py` / `image_synthesis.py` / `aio_image_synthesis.py` | 图像生成（wanx / wan2.x） |
 | `video_synthesis.py` / `aio_video_synthesis.py` | 视频生成（wan 系列） |

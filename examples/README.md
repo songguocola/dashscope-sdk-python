@@ -104,6 +104,7 @@ Uniform style: `client = dashscope.Client()` (reads the key from the `DASHSCOPE_
 | `files/files.py` | File management: upload / list / get / delete |
 | `applications/apps.py` | Model Studio application invocation (non-streaming + streaming) |
 | `fine_tuning/fine_tunes.py` | Fine-tune jobs: list / get, create / wait / delete (uncomment to run) |
+| `fine_tuning/reinforcement_learning.py` | Agentic RL: list / get jobs; register functions -> upload data -> create / wait / delete (uncomment to run) |
 | `models/models.py` | Model list and get |
 
 ## 02_advanced_engineering — Advanced engineering
@@ -121,6 +122,8 @@ Uniform style: `client = dashscope.Client()` (reads the key from the `DASHSCOPE_
 | `tool_call_loop.py` | Managed multi-turn tool-call state machine: declare `tools` schemas, execute locally when the model requests a call, feed the `role="tool"` result back, and loop until a final answer (with a `MAX_TURNS` backstop) | Yes |
 | `rag_expert_system.py` | Standard RAG: corpus embedding -> cosine top-k recall -> `client.rerank` refinement -> an "answer only from the sources" chat prompt -> an answer with citations | Yes |
 | `mcp_server_demo/` | Dependency-free MCP (Model Context Protocol) stdio server + client demo: `server.py` speaks JSON-RPC 2.0; `client_demo.py` spawns the subprocess and runs initialize -> tools/list -> tools/call. See its `README.md` | No |
+| `agentstudio.py` | AgentStudio end-to-end quickstart via `client.agentstudio`: environment -> agent -> session -> streamed reply (plus an opt-in memory-store demo); AgentStudio is shared by the 1.x/2.0 generations and mounts on the 2.0 client | Yes |
+| `agentstudio_deployments.py` | Managed Agent deployments: create a cron-scheduled deployment, trigger a run, list runs | Yes |
 
 ## 04_real_world_scenarios — Real-world scenarios
 
@@ -146,7 +149,6 @@ The following use the old 1.x style (`dashscope.Generation`, `dashscope.MultiMod
 | `multimodal_conversation/` | MultiModalConversation multimodal chat: image, video, tool calls, OCR, ASR, deep thinking |
 | `aio_multimodal_conversation/` | Async versions of the above |
 | `application.py` | Model Studio application (Application) invocation |
-| `agentstudio.py` / `agentstudio_deployments.py` | AgentStudio sessions and managed deployments |
 | `assistant_api*.py` | Assistant agents: create / update, file attachment, end-to-end dialogue |
 | `image_generation.py` / `image_synthesis.py` / `aio_image_synthesis.py` | Image generation (wanx / wan2.x) |
 | `video_synthesis.py` / `aio_video_synthesis.py` | Video generation (wan series) |
