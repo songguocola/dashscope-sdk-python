@@ -70,7 +70,11 @@ __all__ = [
 
 
 class Audio:
-    """Sync audio surface."""
+    """Sync audio surface.
+
+    Preview: the 2.0 audio API surface is not final and may change in
+    a future release.
+    """
 
     def __init__(self, client) -> None:
         self.asr = Asr(client)
@@ -88,6 +92,9 @@ class AsyncAudio:
     Only batch transcription is exposed here; the ws realtime resources
     (``asr.recognize``, ``tts``, ``realtime``) are sync-only by design
     (design doc M3 3.5).
+
+    Preview: the 2.0 audio API surface is not final and may change in
+    a future release.
     """
 
     def __init__(self, client) -> None:
