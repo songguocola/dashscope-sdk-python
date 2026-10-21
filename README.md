@@ -26,13 +26,11 @@ The DashScope Python SDK is the official client for [Alibaba Cloud Model Studio 
 pip install -U dashscope
 ```
 
-The base install covers SDK API calls and the `dashscope` CLI command. Python 3.9+ is required. Optional feature groups are available as extras:
+The base install covers SDK API calls, the `dashscope` CLI command, Agentic RL fine-tuning and the local tokenizer. Python 3.9+ is required. One optional feature group remains:
 
 | Extra | Provides | Install |
 |-------|----------|---------|
 | `acli` | Interactive AI assistant (DashScope SDK Expert) | `pip install "dashscope[acli]"` |
-| `rl` | Agentic RL fine-tuning | `pip install "dashscope[rl]"` |
-| `tokenizer` | Local tokenizer without downloads | `pip install "dashscope[tokenizer]"` |
 
 To install from a source checkout:
 

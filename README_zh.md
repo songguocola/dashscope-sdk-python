@@ -26,13 +26,11 @@ DashScope Python SDK 是[阿里云百炼（Model Studio）](https://help.aliyun.
 pip install -U dashscope
 ```
 
-基础安装包含 SDK API 调用和 `dashscope` CLI 命令，要求 Python 3.9+。可选功能组通过 extras 安装：
+基础安装包含 SDK API 调用、`dashscope` CLI 命令、Agentic RL 微调和本地 tokenizer，要求 Python 3.9+。仅剩一个可选功能组：
 
 | Extra | 提供的能力 | 安装命令 |
 |-------|----------|---------|
 | `acli` | 交互式 AI 助手（DashScope SDK Expert） | `pip install "dashscope[acli]"` |
-| `rl` | Agentic RL 微调 | `pip install "dashscope[rl]"` |
-| `tokenizer` | 本地 tokenizer（无需下载） | `pip install "dashscope[tokenizer]"` |
 
 从源码安装：
 
