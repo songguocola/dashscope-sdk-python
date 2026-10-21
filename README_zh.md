@@ -13,7 +13,7 @@ DashScope Python SDK 是[阿里云百炼（Model Studio）](https://help.aliyun.
 | 入口 | 模块级静态类：`Generation.call(...)` | 资源风格客户端：`client.chat.completions.create(...)` |
 | 一行调用 | —— | `dashscope.chat("qwen-plus", "讲个笑话")` |
 | 响应 | 裸字典；需判断 `status_code == HTTPStatus.OK` | 类型化对象；直接读 `resp.output_text`、`resp.usage.total_tokens` |
-| 错误 | 手动检查 `resp.code` / `resp.message` | 默认抛出类型化的 `DashScopeError` 异常 |
+| 错误 | 手动检查 `resp.code` / `resp.message` | 默认抛出类型化的 `DashScopeError` 异常 *（完善中）* |
 | 流式 | 裸帧生成器 | `ChatStream`，提供 `.text_stream`、`.reasoning_stream`、`.get_final_message()` |
 | 协议 | DashScope 原生 + 单独的 compatible-mode 入口 | 一个客户端通过 `protocol=` 讲 `native`、`openai` 或 `anthropic` |
 | 异步 | 独立的 `Aio*` 类 | `dashscope.AsyncClient()` 完整镜像同步接口 |
@@ -26,13 +26,11 @@ DashScope Python SDK 是[阿里云百炼（Model Studio）](https://help.aliyun.
 pip install -U dashscope
 ```
 
-基础安装包含 SDK API 调用和 `dashscope` CLI 命令，要求 Python 3.9+。可选功能组通过 extras 安装：
+基础安装包含 SDK API 调用、`dashscope` CLI 命令、Agentic RL 微调和本地 tokenizer，要求 Python 3.9+。仅剩一个可选功能组：
 
 | Extra | 提供的能力 | 安装命令 |
 |-------|----------|---------|
 | `acli` | 交互式 AI 助手（DashScope SDK Expert） | `pip install "dashscope[acli]"` |
-| `rl` | Agentic RL 微调 | `pip install "dashscope[rl]"` |
-| `tokenizer` | 本地 tokenizer（无需下载） | `pip install "dashscope[tokenizer]"` |
 
 从源码安装：
 
@@ -190,6 +188,8 @@ for text in stream.text_stream:            # 内容增量
 > **注意：** SDK **不会**自动重试流式请求。生产环境请在你自己的重试/退避逻辑中包裹流消费 —— 参见 [`examples/04_real_world_scenarios/production_ready_rag_harness.py`](examples/04_real_world_scenarios/production_ready_rag_harness.py)。
 
 ### 错误
+
+> **仍在完善中。** 2.0 的类型化错误体系正在持续开发 —— 可能新增异常类，API 错误码到异常类的映射也可能调整。若需要向前兼容，请捕获基类 `errors.DashScopeError`。
 
 失败默认抛出类型化的 `DashScopeError`（非 2xx 的 HTTP 状态码，以及 HTTP 200 但业务报错，都会归入这里）：
 

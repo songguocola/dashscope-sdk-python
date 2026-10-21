@@ -13,7 +13,7 @@ canonical shape)
 - `trace_tool(...)`: tool instrumentation (one canonical shape)
 
 Prerequisites (example):
-  pip install -e ".[agentic_rl_tracing]"
+  pip install -e .
   pip install loongsuite-util-genai
 
 Run:

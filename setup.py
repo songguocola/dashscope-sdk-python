@@ -101,7 +101,6 @@ setuptools.setup(
     install_requires=get_dependencies(),
     include_package_data=True,
     extras_require={
-        "tokenizer": ["tiktoken"],
         # Interactive AI assistant (dashscope.acli); typer/rich are core deps
         "acli": [
             "prompt-toolkit>=3.0",
@@ -123,15 +122,6 @@ setuptools.setup(
             "sounddevice>=0.4",
             "numpy>=1.20",
             "opencv-python-headless>=4.5",
-        ],
-        # Agentic RL fine-tuning (dashscope.finetune.reinforcement)
-        "rl": [
-            "pydantic>=2.0",
-            "tenacity",
-            "PyYAML>=6.0",
-            "fastapi>=0.100",
-            "uvicorn>=0.20",
-            "opentelemetry-sdk>=1.20",
         ],
     },
     zip_safe=False,

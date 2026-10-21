@@ -13,7 +13,7 @@ The DashScope Python SDK is the official client for [Alibaba Cloud Model Studio 
 | Entry point | Module-level static classes: `Generation.call(...)` | A resource-style client: `client.chat.completions.create(...)` |
 | One-liner | — | `dashscope.chat("qwen-plus", "Tell me a joke")` |
 | Response | Raw dict-like; check `status_code == HTTPStatus.OK` | Typed object; read `resp.output_text`, `resp.usage.total_tokens` |
-| Errors | Inspect `resp.code` / `resp.message` by hand | Typed `DashScopeError` exceptions raised by default |
+| Errors | Inspect `resp.code` / `resp.message` by hand | Typed `DashScopeError` exceptions raised by default *(evolving)* |
 | Streaming | Generator of raw frames | `ChatStream` with `.text_stream`, `.reasoning_stream`, `.get_final_message()` |
 | Protocols | DashScope native + a separate compatible-mode entry | One client speaks `native`, `openai`, or `anthropic` via `protocol=` |
 | Async | Separate `Aio*` classes | `dashscope.AsyncClient()` mirrors the whole sync surface |
@@ -26,13 +26,11 @@ The DashScope Python SDK is the official client for [Alibaba Cloud Model Studio 
 pip install -U dashscope
 ```
 
-The base install covers SDK API calls and the `dashscope` CLI command. Python 3.9+ is required. Optional feature groups are available as extras:
+The base install covers SDK API calls, the `dashscope` CLI command, Agentic RL fine-tuning and the local tokenizer. Python 3.9+ is required. One optional feature group remains:
 
 | Extra | Provides | Install |
 |-------|----------|---------|
 | `acli` | Interactive AI assistant (DashScope SDK Expert) | `pip install "dashscope[acli]"` |
-| `rl` | Agentic RL fine-tuning | `pip install "dashscope[rl]"` |
-| `tokenizer` | Local tokenizer without downloads | `pip install "dashscope[tokenizer]"` |
 
 To install from a source checkout:
 
@@ -190,6 +188,8 @@ By default each frame is incremental. Pass `incremental_output=False` to receive
 > **Note:** the SDK does **not** auto-retry streaming requests. Wrap stream consumption in your own retry/backoff for production — see [`examples/04_real_world_scenarios/production_ready_rag_harness.py`](examples/04_real_world_scenarios/production_ready_rag_harness.py).
 
 ### Errors
+
+> **Still evolving.** The 2.0 typed error surface is under active development — new exception classes may be added and the API-error-code → exception mapping may be refined. Catch the base `errors.DashScopeError` if you need to stay forward-compatible.
 
 Failures raise a typed `DashScopeError` by default (both non-2xx HTTP statuses and HTTP-200-with-a-business-error land here):
 
