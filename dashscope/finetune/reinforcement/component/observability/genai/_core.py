@@ -55,6 +55,7 @@ try:
     from opentelemetry.util.genai.types import (
         InputMessage,
         OutputMessage,
+        Reasoning,
         Text,
         ToolCall,
     )
@@ -64,7 +65,7 @@ except ImportError:  # pragma: no cover
     get_extended_telemetry_handler = None  # type: ignore[assignment]
     ExecuteToolInvocation = None  # type: ignore[assignment]
     # type: ignore[assignment]
-    InputMessage = OutputMessage = Text = ToolCall = None
+    InputMessage = OutputMessage = Reasoning = Text = ToolCall = None
     GENAI_AVAILABLE = False
 
 _logger = logging.getLogger(__name__)
