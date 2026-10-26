@@ -52,13 +52,19 @@ try:
         get_extended_telemetry_handler,
     )
     from opentelemetry.util.genai.extended_types import ExecuteToolInvocation
-    from opentelemetry.util.genai.types import (  # pylint: disable=unused-import  # noqa: E501  # facade re-export
+    from opentelemetry.util.genai.types import (
         InputMessage,
         OutputMessage,
-        Reasoning,
         Text,
         ToolCall,
     )
+
+    try:  # Reasoning part exists in loongsuite-util-genai >= 0.4.0.
+        from opentelemetry.util.genai import types as _genai_types
+
+        Reasoning = getattr(_genai_types, "Reasoning", None)
+    except ImportError:  # pragma: no cover - older genai util
+        Reasoning = None  # type: ignore[assignment,misc]
 
     GENAI_AVAILABLE = True
 except ImportError:  # pragma: no cover
