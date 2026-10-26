@@ -52,7 +52,7 @@ try:
         get_extended_telemetry_handler,
     )
     from opentelemetry.util.genai.extended_types import ExecuteToolInvocation
-    from opentelemetry.util.genai.types import (
+    from opentelemetry.util.genai.types import (  # pylint: disable=unused-import  # noqa: E501  # facade re-export
         InputMessage,
         OutputMessage,
         Reasoning,
